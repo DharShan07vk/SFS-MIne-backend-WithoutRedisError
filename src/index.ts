@@ -27,9 +27,13 @@ import adminApplicationsRouter from "./routes/adminEnquiry/route";
 const app: Application = express();
 const port = process.env.PORT || 8000;
 
-// Apply raw body middleware before JSON parsing for webhook routes
-app.use("/payments/verify", express.raw({ type: "application/json" }));
+// Special middleware for webhook that preserves raw body for signature verification
+app.use("/payments/verify", express.raw({ 
+  type: "application/json",
+  limit: "50mb" // Increase limit if needed
+}));
 
+// Standard JSON middleware for all other routes
 app.use(express.json());
 app.use(cors(
     {origin: "*",

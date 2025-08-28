@@ -170,6 +170,12 @@ export const verifyPayment: RequestHandler = async (
   try {
     let errorMessage;
 
+    // Debug: Log environment variables (first few characters only for security)
+    console.log("[WH]: Debug - Environment check:");
+    console.log("[WH]: RZPY_WH_SECRET exists:", !!RZPY_WH_SECRET);
+    console.log("[WH]: RZPY_WH_SECRET length:", RZPY_WH_SECRET?.length);
+    console.log("[WH]: RZPY_WH_SECRET preview:", RZPY_WH_SECRET?.substring(0, 10) + "...");
+
     async function verifyAndProcessPayment(
       data: unknown,
       paymentVerified: boolean,
@@ -440,6 +446,10 @@ export const verifyPayment: RequestHandler = async (
       return;
     }
 
+    console.log("[WH]: Raw body type:", typeof rawBody);
+    console.log("[WH]: Is Buffer:", Buffer.isBuffer(rawBody));
+    console.log("[WH]: Raw body length:", rawBody.length);
+
     // Parse the JSON data from the raw body for processing
     let rawData;
     try {
@@ -453,23 +463,47 @@ export const verifyPayment: RequestHandler = async (
       return;
     }
 
-    // Convert rawBody to string for webhook verification
-    const bodyString = rawBody.toString();
+    // Use multiple verification methods for debugging
+    let webhookVerified = false;
+    let razorpayVerified = false;
+    let manualVerified = false;
 
-    const webhookVerified = validateWebhookSignature(
-      bodyString,
-      String(rzpyWHSignature),
-      RZPY_WH_SECRET!,
-    );
+    try {
+      // Method 1: Use Razorpay's validateWebhookSignature
+      const bodyString = rawBody.toString();
+      razorpayVerified = validateWebhookSignature(
+        bodyString,
+        String(rzpyWHSignature),
+        RZPY_WH_SECRET!,
+      );
+      console.log("[WH]: Razorpay validateWebhookSignature result:", razorpayVerified);
+    } catch (verificationError) {
+      console.log("[WH]: Razorpay verification error:", verificationError);
+    }
 
-    // Additional verification using crypto for debugging
-    const expectedSignature = crypto
-      .createHmac("sha256", RZPY_WH_SECRET!)
-      .update(rawBody)
-      .digest("hex");
+    try {
+      // Method 2: Manual HMAC verification
+      const expectedSignature = crypto
+        .createHmac("sha256", RZPY_WH_SECRET!)
+        .update(rawBody)
+        .digest("hex");
+      
+      manualVerified = expectedSignature === String(rzpyWHSignature);
+      
+      console.log("[WH]: Manual verification:");
+      console.log("[WH]: Our calculated signature:", expectedSignature);
+      console.log("[WH]: Razorpay signature:", rzpyWHSignature);
+      console.log("[WH]: Manual verification result:", manualVerified);
+    } catch (manualError) {
+      console.log("[WH]: Manual verification error:", manualError);
+    }
 
-    console.log("Our Sign", expectedSignature);
-    console.log("From Razorpay", rzpyWHSignature);
+    // Use either verification method
+    webhookVerified = razorpayVerified || manualVerified;
+    
+    console.log("[WH]: Final verification result:", webhookVerified);
+    console.log("[WH]: Razorpay method:", razorpayVerified);
+    console.log("[WH]: Manual method:", manualVerified);
 
 
     if (!webhookVerified) {
@@ -653,6 +687,35 @@ export const verifyClientPayment: RequestHandler = async (
     console.log("🚀 ~ verifyClientPayment ~ error:", error);
     res.status(500).json({
       error: "Server error in payment verification",
+    });
+  }
+};
+
+// Debug endpoint to check environment variables and webhook setup
+export const debugWebhook: RequestHandler = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const debugInfo = {
+      webhookSecretExists: !!RZPY_WH_SECRET,
+      webhookSecretLength: RZPY_WH_SECRET?.length || 0,
+      webhookSecretPreview: RZPY_WH_SECRET?.substring(0, 10) + "..." || "Not found",
+      environment: process.env.NODE_ENV || "development",
+      paymentMode: process.env.PAYMENT_MODE || "Not set",
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log("[DEBUG]: Webhook debug info:", debugInfo);
+
+    res.json({
+      message: "Webhook debug information",
+      data: debugInfo,
+    });
+  } catch (error) {
+    console.log("🚀 ~ debugWebhook ~ error:", error);
+    res.status(500).json({
+      error: "Server error in debug endpoint",
     });
   }
 };
