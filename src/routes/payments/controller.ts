@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { Request, RequestHandler, Response } from "express";
 import { nanoid } from "nanoid";
-import { validateWebhookSignature, validatePaymentVerification } from "razorpay/dist/utils/razorpay-utils";
+ import crypto from "crypto";
+ import { validateWebhookSignature, validatePaymentVerification } from "razorpay/dist/utils/razorpay-utils";
 import { z } from "zod";
 import { db } from "../../db/connection";
 import {
@@ -432,12 +433,24 @@ export const verifyPayment: RequestHandler = async (
       res.status(400).json({ error: "Invalid request" });
       return;
     }
+    const rawBody = (req as any).rawBody;
+
 
     const webhookVerified = validateWebhookSignature(
-      JSON.stringify(rawData),
+      rawBody,
       String(rzpyWHSignature),
       RZPY_WH_SECRET!,
     );
+   
+
+    const expectedSignature = crypto
+  .createHmac("sha256", RZPY_WH_SECRET!)
+  .update(rawBody)
+  .digest("hex");
+
+console.log("Our Sign", expectedSignature);
+console.log("From Razorpay", rzpyWHSignature);
+
 
     if (!webhookVerified) {
       errorMessage = "Invalid webhook. Could not be verified!";
