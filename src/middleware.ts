@@ -8,6 +8,8 @@ import {
 import { verifyJWT } from "./utils/jwt";
 import { authRoleEnum, commonAuthCookieSchema } from "./utils/validation";
 
+import express from "express";
+
 const JWT_SECRET_STU = process.env.AUTH_SECRET_STU;
 const JWT_SECRET_PT = process.env.AUTH_SECRET_PT;
 const JWT_SECRET_AD = process.env.AUTH_SECRET_AD;
@@ -69,3 +71,11 @@ export const requireAuthToken: (
       });
     }
   };
+
+
+export const rawBodyMiddleware = express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf.toString(); // save raw request body
+  },
+});
+
