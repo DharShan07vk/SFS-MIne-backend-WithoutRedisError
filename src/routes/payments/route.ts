@@ -5,7 +5,7 @@ import { createPayment, getPaymentStatus, verifyPayment, verifyClientPayment } f
 const paymentRouter = Router();
 
 paymentRouter.post("/create", requireAuthToken("STUDENT"), createPayment);
-paymentRouter.post("/verify", rawBodyMiddleware,verifyPayment); // Webhook endpoint
+paymentRouter.post("/verify",verifyPayment); // Webhook endpoint
 paymentRouter.post("/verify-client", requireAuthToken("STUDENT"), verifyClientPayment); // NEW client endpoint
 paymentRouter.get("/status/:orderId", requireAuthToken("STUDENT"), getPaymentStatus);
 
