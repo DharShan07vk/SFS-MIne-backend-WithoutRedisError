@@ -437,7 +437,7 @@ export const verifyPayment: RequestHandler = async (
 
 
     const webhookVerified = validateWebhookSignature(
-      rawBody,
+      JSON.stringify(rawData),
       String(rzpyWHSignature),
       RZPY_WH_SECRET!,
     );
