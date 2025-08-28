@@ -1,0 +1,1 @@
+ALTER TABLE "training_enrolment" ADD COLUMN "feedback" text;

@@ -1,0 +1,1 @@
+ALTER TABLE "enq_transaction" ALTER COLUMN "txn_no" SET DATA TYPE char(50);

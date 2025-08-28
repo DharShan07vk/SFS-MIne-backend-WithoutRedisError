@@ -1,0 +1,17 @@
+{
+  "Zod safe parse template": {
+    "scope": "typescript",
+    "prefix": "zodparse",
+    "body": [
+      "const $1 = $2.safeParse(req.body);",
+      "console.log(\"🚀 ~ $1= ~ data:\",$1);",
+      "if (!$1.success) {",
+      "\tres.status(400).json({",
+      "\t\terrors: createValidationError($1),",
+      "\t});",
+      "\treturn;",
+      "}",
+    ],
+    "description": "Inserts new zod safeParse template",
+  },
+}

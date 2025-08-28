@@ -1,0 +1,1 @@
+ALTER TABLE "transaction" ADD COLUMN "idempotency_id" varchar(500);

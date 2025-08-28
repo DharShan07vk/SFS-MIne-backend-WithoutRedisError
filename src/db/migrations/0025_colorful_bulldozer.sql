@@ -1,0 +1,1 @@
+ALTER TABLE "psychology_training" ALTER COLUMN "id_card_url" DROP NOT NULL;

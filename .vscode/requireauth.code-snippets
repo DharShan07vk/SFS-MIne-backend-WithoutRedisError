@@ -1,0 +1,16 @@
+{
+  "Request object auth checking boilerplate": {
+    "scope": "typescript",
+    "prefix": "requireauth",
+    "body": [
+      "const ${1}Auth = req.auth[\"${1}\"];",
+      "if (!${1}Auth) {",
+      "\tres.status(401).json({",
+      "\t\terror: INVALID_SESSION_MSG",
+      "\t});",
+      "\treturn;",
+      "}",
+    ],
+    "description": "Inserts new Request object auth checking boilerplate",
+  },
+}

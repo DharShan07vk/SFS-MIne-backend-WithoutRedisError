@@ -1,0 +1,1 @@
+ALTER TABLE "training_enrolment" ADD CONSTRAINT "training_user_course_unique" UNIQUE("user_id","training_id");
