@@ -4,13 +4,14 @@
   "main": "index.js",
   "scripts": {
     "build": "npx tsc",
-    "start": "node dist/src/index.js",
-    "dev": "nodemon src/index.ts",
     "db:generate": "npx drizzle-kit generate",
     "db:migrate": "npx drizzle-kit migrate",
     "studio": "npx drizzle-kit studio",
-    "db:test": "npx tsx src/db/queries/test.ts"
-  },
+    "db:test": "npx tsx src/db/queries/test.ts",
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "start": "node dist/src/index.js"
+},
+
   "keywords": [],
   "author": "",
   "license": "ISC",
