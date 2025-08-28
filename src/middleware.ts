@@ -75,7 +75,7 @@ export const requireAuthToken: (
 
 export const rawBodyMiddleware = express.json({
   verify: (req: any, res, buf) => {
-    req.rawBody = buf.toString(); // save raw request body
+    req.rawBody = buf; // save raw request body as Buffer
   },
 });
 

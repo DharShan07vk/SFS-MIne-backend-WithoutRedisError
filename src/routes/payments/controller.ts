@@ -423,33 +423,53 @@ export const verifyPayment: RequestHandler = async (
     console.log(`Payload for Event ID: ${rzpyIdempotency}`);
     console.log(`Signature for Event ID: ${rzpyWHSignature}`);
 
-    const rawData = req.body;
-    console.log("[WH]: data:");
-    console.dir(rawData, { depth: 6 });
-
     if (!rzpyWHSignature || !rzpyIdempotency) {
       errorMessage = "Invalid request - No signature found";
       console.log("[WH]: errorMessage:", errorMessage);
       res.status(400).json({ error: "Invalid request" });
       return;
     }
-    const rawBody = (req as any).rawBody;
+    
+    // For webhook verification, req.body will be a Buffer due to express.raw() middleware
+    const rawBody = req.body;
+    
+    if (!rawBody) {
+      errorMessage = "Raw body not found - middleware issue";
+      console.log("[WH]: errorMessage:", errorMessage);
+      res.status(400).json({ error: "Invalid request - no raw body" });
+      return;
+    }
 
+    // Parse the JSON data from the raw body for processing
+    let rawData;
+    try {
+      rawData = JSON.parse(rawBody.toString());
+      console.log("[WH]: data:");
+      console.dir(rawData, { depth: 6 });
+    } catch (parseError) {
+      errorMessage = "Failed to parse webhook data";
+      console.log("[WH]: errorMessage:", errorMessage, parseError);
+      res.status(400).json({ error: "Invalid JSON data" });
+      return;
+    }
+
+    // Convert rawBody to string for webhook verification
+    const bodyString = rawBody.toString();
 
     const webhookVerified = validateWebhookSignature(
-      JSON.stringify(rawData),
+      bodyString,
       String(rzpyWHSignature),
       RZPY_WH_SECRET!,
     );
-   
 
+    // Additional verification using crypto for debugging
     const expectedSignature = crypto
-  .createHmac("sha256", RZPY_WH_SECRET!)
-  .update(rawBody)
-  .digest("hex");
+      .createHmac("sha256", RZPY_WH_SECRET!)
+      .update(rawBody)
+      .digest("hex");
 
-console.log("Our Sign", expectedSignature);
-console.log("From Razorpay", rzpyWHSignature);
+    console.log("Our Sign", expectedSignature);
+    console.log("From Razorpay", rzpyWHSignature);
 
 
     if (!webhookVerified) {
@@ -460,7 +480,7 @@ console.log("From Razorpay", rzpyWHSignature);
     }
 
     // @ts-expect-error llosu
-    verifyAndProcessPayment(rawData, webhookVerified, rzpyIdempotency);
+    await verifyAndProcessPayment(rawData, webhookVerified, rzpyIdempotency);
 
     res.json({ success: true });
   } catch (error) {
