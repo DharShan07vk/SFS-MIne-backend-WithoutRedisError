@@ -39,9 +39,7 @@ app.use(express.json());
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL, process.env.ADMIN_URL, process.env.PARTNER_URL].filter((url): url is string => Boolean(url))
-    : "*",
+  origin:  "*",
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
