@@ -253,12 +253,19 @@ export const enrollCareerCounselling: RequestHandler = async (
 
     await db.transaction(async (tx) => {
       const { data } = careerCounsellingParsed;
-      const pricing = data.service
+      
+      // Calculate base pricing
+      const basePricing = data.service
         ? 2000
         : data.plan === "Basics"
           ? 30000
           : 50000;
 
+      // Calculate final pricing with student discount
+      // Check if student discount should be applied based on studentId in request body
+      const hasStudentDiscount = req.body.studentId && req.body.studentId.trim() !== '';
+      const finalPricing = hasStudentDiscount ? Math.round(basePricing * 0.25) : basePricing;
+      
       const [careerCounselling] = await tx
         .insert(careerCounsellingTable)
         .values({
@@ -274,7 +281,7 @@ export const enrollCareerCounselling: RequestHandler = async (
       // create transaction
       const referenceId = "CAREER_" + nanoid();
       const order = await razorpay.orders.create({
-        amount: pricing * 100,
+        amount: finalPricing * 100, // Use discounted amount for Razorpay
         currency: "INR",
         customer_details: {
           name:
@@ -293,6 +300,12 @@ export const enrollCareerCounselling: RequestHandler = async (
         partial_payment: false,
         notes: {
           reason: `Payment by ${careerCounselling.firstName + " " + (careerCounselling.lastName ?? "")}`,
+          original_amount: String(basePricing),
+          final_amount: String(finalPricing),
+          student_discount: hasStudentDiscount ? "75%" : "0%",
+          student_id: hasStudentDiscount ? req.body.studentId : "",
+          service_type: data.service ? "service" : "plan",
+          selected_item: data.service || data.plan || "",
         },
         receipt: referenceId,
       });
@@ -300,7 +313,7 @@ export const enrollCareerCounselling: RequestHandler = async (
       const [transaction] = await tx
         .insert(enquiryTransactionTable)
         .values({
-          amount: String(pricing),
+          amount: String(finalPricing), // Store the final amount to be paid
           status: "pending",
           txnNo: referenceId,
           orderId: order.id,
@@ -315,16 +328,19 @@ export const enrollCareerCounselling: RequestHandler = async (
 
       res.json({
         data: {
-          amount: String(pricing),
+          amount: String(finalPricing), // Return the discounted amount
           orderId: order.id,
+          originalAmount: String(basePricing),
+          discountApplied: hasStudentDiscount,
+          discountPercentage: hasStudentDiscount ? 75 : 0,
         },
       });
       return;
     });
   } catch (error) {
-    console.log("🚀 ~ enrollPsychologyCounselling ~ error:", error);
+    console.log("🚀 ~ enrollCareerCounselling ~ error:", error);
     res.status(500).json({
-      error: "Server error in registering for psychology counselling!",
+      error: "Server error in registering for career counselling!",
     });
   }
 };

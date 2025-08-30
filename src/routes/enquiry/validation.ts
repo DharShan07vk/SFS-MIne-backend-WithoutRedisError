@@ -74,6 +74,7 @@ export const careerCounsellingSchema = z
       .max(100, "Last name is too long")
       .nullish()
       .or(z.literal("")),
+    studentId: z.string().optional(),
     mobile: z
       .string({ required_error: "Mobile is required!" })
       .regex(/^[6789]\d{9}$/, "Mobile number is invalid"),
