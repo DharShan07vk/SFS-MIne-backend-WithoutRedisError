@@ -23,10 +23,7 @@ export const signInUserSchema = z.object({
   email: z.string().email("Invalid email"),
   password: z
     .string()
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      "Password must be at least 8 characters long and contain both letters and numbers",
-    ),
+    .min(8, "Password must be at least 8 characters long"),
 });
 
 export const getUserInfoSchema = z

@@ -63,8 +63,10 @@ export const registerUser: RequestHandler = async (
 
 export const signIn: RequestHandler = async (req: Request, res: Response) => {
   try {
+    console.log(`Sign-in attempt for: ${req.body?.email}`);
     const signInUserValidation = signInUserSchema.safeParse(req.body);
     if (!signInUserValidation.success) {
+      console.log("Validation failed:", signInUserValidation.error.errors);
       res.status(400).json({
         errors: createValidationError(signInUserValidation),
       });
@@ -76,6 +78,7 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
       },
     });
     if (!user) {
+      console.log(`User not found: ${signInUserValidation.data.email}`);
       res.status(404).json({
         error: "Invalid credentials",
       });
@@ -86,6 +89,7 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
       signInUserValidation.data.password,
     );
     if (!doPwdMatch) {
+      console.log(`Password mismatch for: ${signInUserValidation.data.email}`);
       res.status(404).json({
         error: "Invalid credentials",
       });
@@ -108,6 +112,7 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
       expires: _30minsFromNow,
       sameSite: "lax",
     });
+    console.log(`Successful sign-in for: ${signInUserValidation.data.email}`);
     res.json({
       data: {
         token,

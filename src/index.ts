@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import "dotenv/config";
 import express, { Application, Request, Response } from "express";
+import { db } from "./db/connection";
 import adminAuthRouter from "./routes/adminAuth/route";
 import adminPartnersRouter from "./routes/adminPartners/route";
 import adminStudentsRouter from "./routes/adminStudents/route";
@@ -35,16 +36,56 @@ app.use("/payments/verify", express.raw({
 
 // Standard JSON middleware for all other routes
 app.use(express.json());
-app.use(cors(
-    {origin: "*",
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL, process.env.ADMIN_URL, process.env.PARTNER_URL].filter((url): url is string => Boolean(url))
+    : "*",
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE"]
-}));
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+  optionsSuccessStatus: 200
+};
+
+console.log('CORS configuration:', corsOptions);
+
+app.use(cors(corsOptions));
 app.use(cookieParser());
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Welcome to Express & TypeScript Server");
 });
+
+// Health check endpoint
+app.get("/health", async (req: Request, res: Response) => {
+  try {
+    // Test database connection
+    const testQuery = await db.query.userTable.findFirst();
+    res.json({
+      status: "healthy",
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+      database: "connected",
+      routes: {
+        auth: "/auth/sign-in",
+        health: "/health"
+      }
+    });
+  } catch (error) {
+    console.error("Health check failed:", error);
+    res.status(503).json({
+      status: "unhealthy",
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+      database: "disconnected",
+      error: process.env.NODE_ENV === 'development' ? error : "Database connection failed"
+    });
+  }
+});
+
+// Handle preflight requests
+app.options("*", cors(corsOptions));
 
 app.use("/auth", authRouter);
 app.use("/trainings", studentTrainingRouter);
@@ -66,6 +107,37 @@ app.use("/payments", paymentRouter);
 app.use("/home", homeRouter);
 
 app.use("/testing", testRouter);
+
+// Catch-all route for debugging 404 errors
+app.use("*", (req: Request, res: Response) => {
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
+  console.log(`Headers:`, req.headers);
+  console.log(`Body:`, req.body);
+  res.status(404).json({
+    error: `Route ${req.method} ${req.originalUrl} not found`,
+    availableRoutes: [
+      "GET /",
+      "POST /auth/register",
+      "POST /auth/sign-in", 
+      "GET /auth/me",
+      "GET /trainings/*",
+      "POST /partner/auth/sign-in",
+      "POST /admin/auth/sign-in",
+      "GET /home/carousel",
+      "POST /enquiry",
+      "POST /payments/*"
+    ]
+  });
+});
+
+// Global error handler
+app.use((err: any, req: Request, res: Response, next: any) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
 
 // const worker = new Worker<PDFGenerationType>(
 //   CERT_QUEUE_NAME!,
