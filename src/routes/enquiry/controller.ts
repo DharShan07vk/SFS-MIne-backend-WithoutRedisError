@@ -224,6 +224,7 @@ export const campusAmbassadorRegistration: RequestHandler = async (
         department: campusAmbDataParsed.data.department,
         eduType: campusAmbDataParsed.data.eduType,
         dob: campusAmbDataParsed.data.dob?.toISOString(),
+        linkedin: campusAmbDataParsed.data.linkedin
       })
       .returning();
 
