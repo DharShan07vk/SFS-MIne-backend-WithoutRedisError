@@ -6,6 +6,8 @@ import {
   pgTable,
   smallint,
   text,
+  timestamp,
+  time,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -28,6 +30,8 @@ export const institutionPlanTable = pgTable("institution_plan", {
   contactMobile: char({ length: 10 }).notNull().unique(),
   contactEmail: varchar().notNull().unique(),
   studentsCount: integer(),
+  selectedDate: varchar("selectedDate", { length: 20 }), // e.g., "2023-10-15"
+  selectedTime: varchar("selectedTime", { length: 20 }), // e.g., "10:30 AM", "2:30 PM"
 });
 
 export const psychologyTrainingTable = pgTable("psychology_training", {
@@ -39,6 +43,8 @@ export const psychologyTrainingTable = pgTable("psychology_training", {
   city: varchar("city", { length: 200 }).notNull(),
   state: varchar("state", { length: 200 }).notNull(),
   idCardURL: text(),
+  selectedDate: varchar("selectedDate", {length: 20}), // e.g., "2023-10-15"
+  selectedTime: varchar("selectedTime", { length: 20 }), // e.g., "10:30 AM", "2:30 PM"
   ...timestamps(),
 });
 
@@ -50,6 +56,8 @@ export const careerCounsellingTable = pgTable("career_counselling", {
   mobile: char({ length: 10 }).notNull(),
   service: varchar({ length: 100 }),
   plan: institutionPlans(),
+  selectedDate: varchar("selectedDate", { length: 20 }), // e.g., "2023-10-15"
+  selectedTime: varchar("selectedTime", { length: 20 }), // e.g., "10:30 AM", "2:30 PM"
   ...timestamps(),
 });
 
