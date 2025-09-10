@@ -26,6 +26,14 @@ export const userTable = pgTable("user", {
   ...timestamps(),
 });
 
+export const userOtp = pgTable("userotp",{
+  id: uuid().primaryKey().defaultRandom(),
+  email : varchar({ length: 200 }).notNull().unique(),
+  otp: integer("otp").notNull(),
+  createdAt: integer("created_at").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+});
+
 export const instructorTable = pgTable("instructor", {
   id: uuid().primaryKey().defaultRandom(),
   firstName: varchar("first_name", { length: 50 }).notNull(),
