@@ -225,6 +225,20 @@
       "when": 1755967169238,
       "tag": "0031_dusty_master_chief",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1757424430208,
+      "tag": "0032_material_silver_sable",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1757441408420,
+      "tag": "0033_busy_hercules",
+      "breakpoints": true
     }
   ]
 }
