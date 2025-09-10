@@ -6,6 +6,32 @@ export const getPsychologyTrainings: RequestHandler = async (
   req: Request,
   res: Response,
 ) => {
+  // try {
+  //   const partnerAuth = req.auth["ADMIN"];
+  //   if (!partnerAuth) {
+  //     res.status(401).json({
+  //       error: INVALID_SESSION_MSG,
+  //     });
+  //     return;
+  //   }
+  //   const psychologyTrainings = await db.query.psychologyTrainingTable.findMany(
+  //     {
+  //       with: {
+  //         transactions: true,
+  //       },
+  //       orderBy(fields, operators) {
+  //         return operators.desc(fields.createdAt);
+  //       },
+  //     },
+  //   );
+
+  //   res.json({ data: psychologyTrainings });
+  // } catch (error) {
+  //   console.log("🚀 ~ getPsychologyTrainings ~ error:", error);
+  //   res.status(500).json({
+  //     error: "Server error in fetching psychology training details",
+  //   });
+  // }
   try {
     const partnerAuth = req.auth["ADMIN"];
     if (!partnerAuth) {
@@ -14,16 +40,22 @@ export const getPsychologyTrainings: RequestHandler = async (
       });
       return;
     }
-    const psychologyTrainings = await db.query.psychologyTrainingTable.findMany(
-      {
-        with: {
-          transactions: true,
-        },
-        orderBy(fields, operators) {
-          return operators.desc(fields.createdAt);
+    const psychologyTrainings = await db.query.psychologyTrainingTable.findMany({
+      with: {
+        transactions: {
+          with: {
+            transaction: true,
+          },
+          limit: 1,
+          orderBy(fields, operators) {
+            return operators.desc(fields.updatedAt);
+          },
         },
       },
-    );
+      orderBy(fields, operators) {
+        return operators.desc(fields.createdAt);
+      },
+    });
 
     res.json({ data: psychologyTrainings });
   } catch (error) {
