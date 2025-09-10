@@ -26,6 +26,8 @@ export const institutionPlanSchema = z.object({
     .max(100, "Maximum state name limit is 100 characters only"),
   pincode: z.string().regex(/[0-9]{6}/g, "Invalid pincode"),
   plan: z.enum(["Basics", "Premium"]),
+  selectedDate: z.string().min(2, "Select a valid date"),
+  selectedTime: z.string().min(2, "Select a valid time"),
 });
 
 export const psychologyTrainingSchema = z.object({
@@ -60,6 +62,8 @@ export const psychologyTrainingSchema = z.object({
       message: "Not valid image format",
     })
     .nullish(),
+  selectedDate: z.string().min(2, "Select a valid date"),
+  selectedTime: z.string().min(2, "Select a valid time"),
 });
 
 export const careerCounsellingSchema = z
@@ -92,6 +96,8 @@ export const careerCounsellingSchema = z
       ])
       .nullish(),
     plan: z.enum(["Basics", "Premium"]).nullish(),
+    selectedDate: z.string().min(2, "Select a valid date"),
+    selectedTime: z.string().min(2, "Select a valid time"),
   })
   .superRefine((fields, ctx) => {
     if (!fields.plan && !fields.service) {
