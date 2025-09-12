@@ -31,3 +31,12 @@ export const signInUserSchema = z.object({
 export const getUserInfoSchema = z
   .string({ required_error: "Invalid request" })
   .uuid("Invalid user id");
+
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password too long"),
+});

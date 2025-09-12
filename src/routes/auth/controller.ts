@@ -3,6 +3,7 @@ import {
   getUserInfoSchema,
   registerUserSchema,
   signInUserSchema,
+  resetPasswordSchema,
 } from "./validation";
 import { db } from "../../db/connection";
 import { userTable } from "../../db/schema";
@@ -15,6 +16,7 @@ import {
   INVALID_SESSION_MSG,
   STUDENT_AUTH_COOKIE_NAME,
 } from "../../utils/constants";
+import { eq } from "drizzle-orm";
 
 export const registerUser: RequestHandler = async (
   req: Request,
@@ -156,5 +158,43 @@ export const getUserInfo: RequestHandler = async (
     res.status(500).json({
       error: "Server error in obtaining user information",
     });
+  }
+};
+
+export const resetPassword: RequestHandler = async (req: Request, res: Response) => {
+  try {
+    // Validate input using Zod
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ errors: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    const { email, newPassword } = parsed.data;
+
+    // Check if user exists
+    const user = await db.query.userTable.findFirst({
+      where(fields, operators) {
+        return operators.eq(fields.email, email);
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    // Hash new password
+    const hashedPassword = await generateHashPassword(newPassword);
+
+    // Update user password
+    await db
+      .update(userTable)
+      .set({ hash: hashedPassword.hash, salt: hashedPassword.salt })
+      .where(eq(userTable.id, user.id));
+    console.log("🚀 ~ resetPassword ~ user.id:", user.id);
+    res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.log("🚀 ~ resetPassword ~ error:", error);
+    res.status(500).json({ error: "Server error in resetting password" });
   }
 };
