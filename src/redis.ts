@@ -23,20 +23,20 @@ if (!REDIS_URI || !CERT_QUEUE_NAME) {
   );
 }
 
-// export const redis = new Redis(REDIS_URI, {
-//   maxRetriesPerRequest: null,
-//   retryStrategy() {
-//     return 10;
-//   },
-//   reconnectOnError: (err) =>
-//     err.message.includes("ECONNREFUSED") ? false : true,
-//   enableOfflineQueue: true,
-// });
+export const redis = new Redis(REDIS_URI, {
+  maxRetriesPerRequest: null,
+  retryStrategy() {
+    return 10;
+  },
+  reconnectOnError: (err) =>
+    err.message.includes("ECONNREFUSED") ? false : true,
+  enableOfflineQueue: true,
+});
 
-// export const redis = createClient({
-//   url: REDIS_URI,disableOfflineQueue: false,
-// });
+export const redisClient = createClient({
+   url: REDIS_URI,disableOfflineQueue: false,
+});
 
-// export const pdfQ = new Queue<PDFGenerationType, boolean>(CERT_QUEUE_NAME, {
-//   connection: redis,
-// });
+export const pdfQ = new Queue<PDFGenerationType, boolean>(CERT_QUEUE_NAME, {
+  connection: redis,
+});
