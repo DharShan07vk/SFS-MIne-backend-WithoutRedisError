@@ -8,14 +8,17 @@ const REDIS_URI =
     : process.env.REDIS_URI_PROD;
 
 export const CERT_QUEUE_NAME = process.env.QUEUE_NAME_CERT;
-export type PDFGenerationType = {
+export interface PDFGenerationType {
   name: string;
   courseName: string;
-  completedOn: string | Date;
+  completedOn: string;
   certificateId: string;
   enrolmentId: string;
   instructor: string;
-};
+  startDate: string;  // Add this
+  endDate: string;    // Add this
+  digitalSignUrl?: string | null;  // Add this
+}
 
 if (!REDIS_URI || !CERT_QUEUE_NAME) {
   throw new Error(

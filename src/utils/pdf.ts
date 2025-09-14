@@ -47,8 +47,26 @@ export async function generateCertificate(data: PDFGenerationType) {
       color: rgb(0, 0, 0),
     });
 
-    //course name - Bro template text like "completed ...." adhu ku thaniya string vatchi merge panniralam
-    let duration = "one week";
+    // Calculate course duration
+    const startDate = new Date(data.startDate);
+    const endDate = new Date(data.endDate);
+    const timeDiff = endDate.getTime() - startDate.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    
+    let duration: string;
+    if (daysDiff === 1) {
+      duration = "one day";
+    } else if (daysDiff <= 7) {
+      duration = `${daysDiff} days`;
+    } else if (daysDiff <= 14) {
+      duration = daysDiff === 7 ? "one week" : `${Math.ceil(daysDiff / 7)} weeks`;
+    } else if (daysDiff <= 30) {
+      duration = `${Math.ceil(daysDiff / 7)} weeks`;
+    } else {
+      const months = Math.ceil(daysDiff / 30);
+      duration = months === 1 ? "one month" : `${months} months`;
+    }
+
     let instructor = data.instructor;
     let content = `Completed a structured ${data.courseName} online course through the collaborative 'STEM for Society' program, delivered by ${instructor}.`;
 
@@ -129,6 +147,7 @@ export async function generateCertificate(data: PDFGenerationType) {
         font: boldFont,
       })),
     );
+    
     console.log(wordObjects, keyObjects);
     drawStyledText(xStart, y, [
       ...wordObjects[0], //Completed a structured
@@ -138,6 +157,53 @@ export async function generateCertificate(data: PDFGenerationType) {
       ...wordObjects[2], // through the collaborative 'STEM for Society' program, delivered by
       ...keyObjects[2],
     ]);
+
+    // Add digital signature if available
+    if (data.digitalSignUrl) {
+      try {
+        // Fetch the digital signature image
+        const signatureResponse = await fetch(data.digitalSignUrl);
+        if (signatureResponse.ok) {
+          const signatureBytes = await signatureResponse.arrayBuffer();
+          
+          // Determine image type and embed accordingly
+          let signatureImage;
+          const contentType = signatureResponse.headers.get('content-type');
+          
+          if (contentType?.includes('png')) {
+            signatureImage = await pdfDoc.embedPng(signatureBytes);
+          } else if (contentType?.includes('jpeg') || contentType?.includes('jpg')) {
+            signatureImage = await pdfDoc.embedJpg(signatureBytes);
+          } else {
+            // Default to PNG if content type is unclear
+            signatureImage = await pdfDoc.embedPng(signatureBytes);
+          }
+
+          // Calculate signature dimensions and position
+          const signatureWidth = 80; // Adjust as needed
+          const signatureHeight = 80; // Adjust as needed
+          const signatureX = 400; 
+          const signatureY = 150; 
+
+          // Draw the signature
+          firstPage.drawImage(signatureImage, {
+            x: signatureX,
+            y: signatureY,
+            width: signatureWidth,
+            height: signatureHeight,
+          });
+
+          console.log("Digital signature added to certificate");
+        } else {
+          console.warn("Could not fetch digital signature image");
+        }
+      } catch (signatureError) {
+        console.error("Error adding digital signature:", signatureError);
+        // Continue without signature if there's an error
+      }
+    }
+
+    // Add certificate ID
     firstPage.drawText(data.certificateId, {
       x: 120,
       y: 170,

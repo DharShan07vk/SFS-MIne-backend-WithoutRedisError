@@ -14,8 +14,14 @@ import cloudinary, {
   CLOUDINARY_CLOUD_NAME,
 } from "../../cloudinary";
 import { trainingEnrolmentTable } from "../../db/schema";
-import { eq } from "drizzle-orm"; // Add this import too
+import { eq } from "drizzle-orm";
 import { generateCertificate } from "../../utils/pdf";
+
+// Add this helper function at the top of the file
+const formatDateToString = (date: Date | null): string => {
+  if (!date) return new Date().toISOString();
+  return date instanceof Date ? date.toISOString() : new Date(date).toISOString();
+};
 
 export const getTrainings: RequestHandler = async (
   req: Request,
@@ -566,6 +572,12 @@ export const generateCertificates: RequestHandler = async (
     }
     
     const trainingEnrolments = await db.query.trainingTable.findFirst({
+      columns: {
+        id: true,
+        title: true,
+        startDate: true,  // Add these fields
+        endDate: true,    // Add these fields
+      },
       with: {
         enrolments: {
           columns: {
@@ -600,6 +612,7 @@ export const generateCertificates: RequestHandler = async (
           columns: {
             firstName: true,
             lastName: true,
+            digitalSign: true, // Digital signature URL
           },
         },
       },
@@ -668,16 +681,21 @@ export const generateCertificates: RequestHandler = async (
         const certificateData = {
           name: enr.user?.firstName + " " + (enr.user?.lastName ?? ""),
           courseName: trainingEnrolments.title,
-          completedOn: ratingByUser.completedOn!,
+          completedOn: formatDateToString(ratingByUser.completedOn), // Convert Date to string
           certificateId,
           enrolmentId: enr.id,
           instructor:
             trainingEnrolments.instructor?.firstName +
             " " +
             (trainingEnrolments.instructor?.lastName ?? ""),
+          startDate: formatDateToString(trainingEnrolments.startDate), // Convert Date to string
+          endDate: formatDateToString(trainingEnrolments.endDate),     // Convert Date to string
+          digitalSignUrl: trainingEnrolments.instructor?.digitalSign || null,
         };
         
         console.log(`🚀 Generating certificate for: ${certificateData.name}`);
+        console.log(`🚀 Course dates: ${certificateData.startDate} to ${certificateData.endDate}`);
+        console.log(`🚀 Digital sign URL: ${certificateData.digitalSignUrl}`);
         
         // Call your existing generateCertificate function directly
         const success = await generateCertificate(certificateData);
