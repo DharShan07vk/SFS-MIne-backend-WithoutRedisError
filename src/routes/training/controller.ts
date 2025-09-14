@@ -6,7 +6,7 @@ import { trainingLessonTable, trainingTable } from "../../db/schema";
 import { INVALID_SESSION_MSG } from "../../utils/constants";
 import { z } from "zod";
 import { supabase, SUPABASE_PROJECT_URL } from "../../supabase";
-//import { pdfQ } from "../../redis";
+import { pdfQ } from "../../redis";
 import { nanoid } from "nanoid";
 import cloudinary, {
   CLOUDINARY_API_KEY,
@@ -232,6 +232,10 @@ export const createTraining: RequestHandler = async (
   }
 };
 
+// Add this import at the top of controller.ts
+import { trainingEnrolmentTable } from "../../db/schema";
+import { eq } from "drizzle-orm"; // Add this import too
+
 export const generateCertificates: RequestHandler = async (
   req: Request,
   res: Response,
@@ -263,6 +267,7 @@ export const generateCertificates: RequestHandler = async (
         .json({ errors: createValidationError(enrolmentIdsParsed) });
       return;
     }
+    
     const trainingEnrolments = await db.query.trainingTable.findFirst({
       with: {
         enrolments: {
@@ -308,12 +313,14 @@ export const generateCertificates: RequestHandler = async (
         );
       },
     });
+    
     if (!trainingEnrolments || !(trainingEnrolments.enrolments.length > 0)) {
       res.status(404).json({
         error: "Could not find such course or course has no enrolments!",
       });
       return;
     }
+    
     if (
       !trainingEnrolments.enrolments.every((enr) => {
         const ratingByUser = trainingEnrolments.ratings.find(
@@ -328,33 +335,60 @@ export const generateCertificates: RequestHandler = async (
       });
       return;
     }
-    await Promise.all(
-      trainingEnrolments.enrolments
-        .filter((enr) => !enr.certificate)
-        .map((enr) => {
-          const certificateId = nanoid(30);
-          const enrolmentId = enr.id;
-          const ratingByUser = trainingEnrolments.ratings.find(
-            (rat) => rat.userId === enr.userId,
-          )!;
-          console.log("yes");
-          // return pdfQ.add(`certificate-${certificateId}`, {
-          //   name: enr.user?.firstName + " " + (enr.user?.lastName ?? ""),
-          //   courseName: trainingEnrolments.title,
-          //   completedOn: ratingByUser.completedOn!,
-          //   certificateId,
-          //   enrolmentId,
-          //   instructor:
-          //     trainingEnrolments.instructor?.firstName +
-          //     " " +
-          //     (trainingEnrolments.instructor?.lastName ?? ""),
-          // });
-          return null;
-        }),
+
+    // Filter enrolments that don't have certificates yet
+    const enrolmentsToProcess = trainingEnrolments.enrolments.filter(
+      (enr) => !enr.certificate
     );
+    
+    if (enrolmentsToProcess.length === 0) {
+      res.status(400).json({
+        error: "All selected students already have certificates generated!",
+      });
+      return;
+    }
+
+    console.log(`🚀 Processing ${enrolmentsToProcess.length} certificates`);
+
+    // First, update database to show "generating" status
+    await Promise.all(
+      enrolmentsToProcess.map(async (enr) => {
+        await db
+          .update(trainingEnrolmentTable)
+          .set({ certificate: "generating" })
+          .where(eq(trainingEnrolmentTable.id, enr.id));
+      })
+    );
+
+    // Then add jobs to queue
+    const queueJobs = enrolmentsToProcess.map((enr) => {
+      const certificateId = nanoid(30);
+      const enrolmentId = enr.id;
+      const ratingByUser = trainingEnrolments.ratings.find(
+        (rat) => rat.userId === enr.userId,
+      )!;
+      
+      console.log(`🚀 Adding certificate job for enrolment: ${enrolmentId}`);
+      
+      return pdfQ.add(`certificate-${certificateId}`, {
+        name: enr.user?.firstName + " " + (enr.user?.lastName ?? ""),
+        courseName: trainingEnrolments.title,
+        completedOn: ratingByUser.completedOn!,
+        certificateId,
+        enrolmentId,
+        instructor:
+          trainingEnrolments.instructor?.firstName +
+          " " +
+          (trainingEnrolments.instructor?.lastName ?? ""),
+      });
+    });
+
+    await Promise.all(queueJobs);
+    
+    console.log(`🚀 Successfully queued ${queueJobs.length} certificate jobs`);
+    
     res.json({
-      message:
-        "Certificates are being generated and will be available for students to download",
+      message: `Certificates are being generated for ${enrolmentsToProcess.length} students and will be available for download soon.`,
     });
     return;
   } catch (error) {
@@ -364,6 +398,141 @@ export const generateCertificates: RequestHandler = async (
     });
   }
 };
+
+// export const generateCertificates: RequestHandler = async (
+//   req: Request,
+//   res: Response,
+// ) => {
+//   try {
+//     const partnerAuth = req.auth["PARTNER"];
+//     if (!partnerAuth) {
+//       res.status(401).json({
+//         error: INVALID_SESSION_MSG,
+//       });
+//       return;
+//     }
+//     const { trainingId: trainingIdUnsafe } = req.params;
+//     const trainingId = z.string().uuid().safeParse(trainingIdUnsafe);
+//     if (!trainingId.success) {
+//       res.status(400).json({
+//         error: "Invalid training ID",
+//       });
+//       return;
+//     }
+//     const enrolmentIdsUnsafe = req.body;
+//     const enrolmentIdsParsed = z
+//       .array(z.string().uuid("Invalid IDs"))
+//       .min(1, "Atleast one enrolment need to be selected")
+//       .safeParse(enrolmentIdsUnsafe);
+//     if (!enrolmentIdsParsed.success) {
+//       res
+//         .status(400)
+//         .json({ errors: createValidationError(enrolmentIdsParsed) });
+//       return;
+//     }
+//     const trainingEnrolments = await db.query.trainingTable.findFirst({
+//       with: {
+//         enrolments: {
+//           columns: {
+//             id: true,
+//             paidOn: true,
+//             certificate: true,
+//             userId: true,
+//           },
+//           with: {
+//             user: {
+//               columns: {
+//                 firstName: true,
+//                 lastName: true,
+//                 mobile: true,
+//                 email: true,
+//               },
+//             },
+//           },
+//           where(fields, operators) {
+//             return operators.inArray(fields.id, enrolmentIdsParsed.data);
+//           },
+//         },
+//         ratings: {
+//           columns: {
+//             feedback: true,
+//             rating: true,
+//             userId: true,
+//             completedOn: true,
+//           },
+//         },
+//         instructor: {
+//           columns: {
+//             firstName: true,
+//             lastName: true,
+//           },
+//         },
+//       },
+//       where(fields, operators) {
+//         return operators.and(
+//           operators.eq(fields.createdBy, partnerAuth.id),
+//           operators.eq(fields.id, trainingId.data),
+//         );
+//       },
+//     });
+//     if (!trainingEnrolments || !(trainingEnrolments.enrolments.length > 0)) {
+//       res.status(404).json({
+//         error: "Could not find such course or course has no enrolments!",
+//       });
+//       return;
+//     }
+//     if (
+//       !trainingEnrolments.enrolments.every((enr) => {
+//         const ratingByUser = trainingEnrolments.ratings.find(
+//           (rat) => rat.userId === enr.userId,
+//         );
+//         return ratingByUser?.feedback && ratingByUser.rating;
+//       })
+//     ) {
+//       res.status(403).json({
+//         error:
+//           "Not all selected enrolments have given rating and feedbacks! Please reselect appropriate candidates!",
+//       });
+//       return;
+//     }
+//     await Promise.all(
+//       trainingEnrolments.enrolments
+//         .filter((enr) => !enr.certificate)
+//         .map((enr) => {
+//           const certificateId = nanoid(30);
+//           const enrolmentId = enr.id;
+//           const ratingByUser = trainingEnrolments.ratings.find(
+//             (rat) => rat.userId === enr.userId,
+//           )!;
+//           console.log("yes");
+//           return pdfQ.add(`certificate-${certificateId}`, {
+//             name: enr.user?.firstName + " " + (enr.user?.lastName ?? ""),
+//             courseName: trainingEnrolments.title,
+//             completedOn: ratingByUser.completedOn!,
+//             certificateId,
+//             enrolmentId,
+//             instructor:
+//               trainingEnrolments.instructor?.firstName +
+//               " " +
+//               (trainingEnrolments.instructor?.lastName ?? ""),
+//           });
+//           return null;
+//         }),
+//     );
+//     res.json({
+//       message:
+//         "Certificates are being generated and will be available for students to download",
+//     });
+//     return;
+//   } catch (error) {
+//     console.log("🚀 ~ generateCertificates ~ error:", error);
+//     res.status(500).json({
+//       error: "Server error in generating certificates",
+//     });
+//   }
+// };
+
+
 
 export const generateUploadSignature: RequestHandler = async (
   req: Request,
