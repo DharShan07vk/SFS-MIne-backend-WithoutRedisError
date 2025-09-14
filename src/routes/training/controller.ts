@@ -13,6 +13,9 @@ import cloudinary, {
   CLOUDINARY_API_SECRET,
   CLOUDINARY_CLOUD_NAME,
 } from "../../cloudinary";
+import { trainingEnrolmentTable } from "../../db/schema";
+import { eq } from "drizzle-orm"; // Add this import too
+import { generateCertificate } from "../../utils/pdf";
 
 export const getTrainings: RequestHandler = async (
   req: Request,
@@ -232,172 +235,170 @@ export const createTraining: RequestHandler = async (
   }
 };
 
-// Add this import at the top of controller.ts
-import { trainingEnrolmentTable } from "../../db/schema";
-import { eq } from "drizzle-orm"; // Add this import too
-
-export const generateCertificates: RequestHandler = async (
-  req: Request,
-  res: Response,
-) => {
-  try {
-    const partnerAuth = req.auth["PARTNER"];
-    if (!partnerAuth) {
-      res.status(401).json({
-        error: INVALID_SESSION_MSG,
-      });
-      return;
-    }
-    const { trainingId: trainingIdUnsafe } = req.params;
-    const trainingId = z.string().uuid().safeParse(trainingIdUnsafe);
-    if (!trainingId.success) {
-      res.status(400).json({
-        error: "Invalid training ID",
-      });
-      return;
-    }
-    const enrolmentIdsUnsafe = req.body;
-    const enrolmentIdsParsed = z
-      .array(z.string().uuid("Invalid IDs"))
-      .min(1, "Atleast one enrolment need to be selected")
-      .safeParse(enrolmentIdsUnsafe);
-    if (!enrolmentIdsParsed.success) {
-      res
-        .status(400)
-        .json({ errors: createValidationError(enrolmentIdsParsed) });
-      return;
-    }
+// export const generateCertificates: RequestHandler = async (
+//   req: Request,
+//   res: Response,
+// ) => {
+//   try {
+//     const partnerAuth = req.auth["PARTNER"];
+//     if (!partnerAuth) {
+//       res.status(401).json({
+//         error: INVALID_SESSION_MSG,
+//       });
+//       return;
+//     }
+//     const { trainingId: trainingIdUnsafe } = req.params;
+//     const trainingId = z.string().uuid().safeParse(trainingIdUnsafe);
+//     if (!trainingId.success) {
+//       res.status(400).json({
+//         error: "Invalid training ID",
+//       });
+//       return;
+//     }
+//     const enrolmentIdsUnsafe = req.body;
+//     const enrolmentIdsParsed = z
+//       .array(z.string().uuid("Invalid IDs"))
+//       .min(1, "Atleast one enrolment need to be selected")
+//       .safeParse(enrolmentIdsUnsafe);
+//     if (!enrolmentIdsParsed.success) {
+//       res
+//         .status(400)
+//         .json({ errors: createValidationError(enrolmentIdsParsed) });
+//       return;
+//     }
     
-    const trainingEnrolments = await db.query.trainingTable.findFirst({
-      with: {
-        enrolments: {
-          columns: {
-            id: true,
-            paidOn: true,
-            certificate: true,
-            userId: true,
-          },
-          with: {
-            user: {
-              columns: {
-                firstName: true,
-                lastName: true,
-                mobile: true,
-                email: true,
-              },
-            },
-          },
-          where(fields, operators) {
-            return operators.inArray(fields.id, enrolmentIdsParsed.data);
-          },
-        },
-        ratings: {
-          columns: {
-            feedback: true,
-            rating: true,
-            userId: true,
-            completedOn: true,
-          },
-        },
-        instructor: {
-          columns: {
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-      where(fields, operators) {
-        return operators.and(
-          operators.eq(fields.createdBy, partnerAuth.id),
-          operators.eq(fields.id, trainingId.data),
-        );
-      },
-    });
+//     const trainingEnrolments = await db.query.trainingTable.findFirst({
+//       with: {
+//         enrolments: {
+//           columns: {
+//             id: true,
+//             paidOn: true,
+//             certificate: true,
+//             userId: true,
+//           },
+//           with: {
+//             user: {
+//               columns: {
+//                 firstName: true,
+//                 lastName: true,
+//                 mobile: true,
+//                 email: true,
+//               },
+//             },
+//           },
+//           where(fields, operators) {
+//             return operators.inArray(fields.id, enrolmentIdsParsed.data);
+//           },
+//         },
+//         ratings: {
+//           columns: {
+//             feedback: true,
+//             rating: true,
+//             userId: true,
+//             completedOn: true,
+//           },
+//         },
+//         instructor: {
+//           columns: {
+//             firstName: true,
+//             lastName: true,
+//           },
+//         },
+//       },
+//       where(fields, operators) {
+//         return operators.and(
+//           operators.eq(fields.createdBy, partnerAuth.id),
+//           operators.eq(fields.id, trainingId.data),
+//         );
+//       },
+//     });
     
-    if (!trainingEnrolments || !(trainingEnrolments.enrolments.length > 0)) {
-      res.status(404).json({
-        error: "Could not find such course or course has no enrolments!",
-      });
-      return;
-    }
+//     if (!trainingEnrolments || !(trainingEnrolments.enrolments.length > 0)) {
+//       res.status(404).json({
+//         error: "Could not find such course or course has no enrolments!",
+//       });
+//       return;
+//     }
     
-    if (
-      !trainingEnrolments.enrolments.every((enr) => {
-        const ratingByUser = trainingEnrolments.ratings.find(
-          (rat) => rat.userId === enr.userId,
-        );
-        return ratingByUser?.feedback && ratingByUser.rating;
-      })
-    ) {
-      res.status(403).json({
-        error:
-          "Not all selected enrolments have given rating and feedbacks! Please reselect appropriate candidates!",
-      });
-      return;
-    }
+//     if (
+//       !trainingEnrolments.enrolments.every((enr) => {
+//         const ratingByUser = trainingEnrolments.ratings.find(
+//           (rat) => rat.userId === enr.userId,
+//         );
+//         return ratingByUser?.feedback && ratingByUser.rating;
+//       })
+//     ) {
+//       res.status(403).json({
+//         error:
+//           "Not all selected enrolments have given rating and feedbacks! Please reselect appropriate candidates!",
+//       });
+//       return;
+//     }
 
-    // Filter enrolments that don't have certificates yet
-    const enrolmentsToProcess = trainingEnrolments.enrolments.filter(
-      (enr) => !enr.certificate
-    );
+//     // Filter enrolments that don't have certificates yet
+//     const enrolmentsToProcess = trainingEnrolments.enrolments.filter(
+//       (enr) => !enr.certificate
+//     );
     
-    if (enrolmentsToProcess.length === 0) {
-      res.status(400).json({
-        error: "All selected students already have certificates generated!",
-      });
-      return;
-    }
+//     if (enrolmentsToProcess.length === 0) {
+//       res.status(400).json({
+//         error: "All selected students already have certificates generated!",
+//       });
+//       return;
+//     }
 
-    console.log(`🚀 Processing ${enrolmentsToProcess.length} certificates`);
+//     console.log(`🚀 Processing ${enrolmentsToProcess.length} certificates`);
 
-    // First, update database to show "generating" status
-    await Promise.all(
-      enrolmentsToProcess.map(async (enr) => {
-        await db
-          .update(trainingEnrolmentTable)
-          .set({ certificate: "generating" })
-          .where(eq(trainingEnrolmentTable.id, enr.id));
-      })
-    );
+//     // First, update database to show "generating" status
+//     await Promise.all(
+//       enrolmentsToProcess.map(async (enr) => {
+//         await db
+//           .update(trainingEnrolmentTable)
+//           .set({ certificate: "generating" })
+//           .where(eq(trainingEnrolmentTable.id, enr.id));
+//       })
+//     );
 
-    // Then add jobs to queue
-    const queueJobs = enrolmentsToProcess.map((enr) => {
-      const certificateId = nanoid(30);
-      const enrolmentId = enr.id;
-      const ratingByUser = trainingEnrolments.ratings.find(
-        (rat) => rat.userId === enr.userId,
-      )!;
+//     // Then add jobs to queue
+//     const queueJobs = enrolmentsToProcess.map((enr) => {
+//       const certificateId = nanoid(30);
+//       const enrolmentId = enr.id;
+//       const ratingByUser = trainingEnrolments.ratings.find(
+//         (rat) => rat.userId === enr.userId,
+//       )!;
       
-      console.log(`🚀 Adding certificate job for enrolment: ${enrolmentId}`);
+//       console.log(`🚀 Adding certificate job for enrolment: ${enrolmentId}`);
       
-      return pdfQ.add(`certificate-${certificateId}`, {
-        name: enr.user?.firstName + " " + (enr.user?.lastName ?? ""),
-        courseName: trainingEnrolments.title,
-        completedOn: ratingByUser.completedOn!,
-        certificateId,
-        enrolmentId,
-        instructor:
-          trainingEnrolments.instructor?.firstName +
-          " " +
-          (trainingEnrolments.instructor?.lastName ?? ""),
-      });
-    });
+//       return pdfQ.add(`certificate-${certificateId}`, {
+//         name: enr.user?.firstName + " " + (enr.user?.lastName ?? ""),
+//         courseName: trainingEnrolments.title,
+//         completedOn: ratingByUser.completedOn!,
+//         certificateId,
+//         enrolmentId,
+//         instructor:
+//           trainingEnrolments.instructor?.firstName +
+//           " " +
+//           (trainingEnrolments.instructor?.lastName ?? ""),
+//       });
+//     });
 
-    await Promise.all(queueJobs);
+//     await Promise.all(queueJobs);
     
-    console.log(`🚀 Successfully queued ${queueJobs.length} certificate jobs`);
+//     console.log(`🚀 Successfully queued ${queueJobs.length} certificate jobs`);
     
-    res.json({
-      message: `Certificates are being generated for ${enrolmentsToProcess.length} students and will be available for download soon.`,
-    });
-    return;
-  } catch (error) {
-    console.log("🚀 ~ generateCertificates ~ error:", error);
-    res.status(500).json({
-      error: "Server error in generating certificates",
-    });
-  }
-};
+//     res.json({
+//       message: `Certificates are being generated for ${enrolmentsToProcess.length} students and will be available for download soon.`,
+//     });
+//     return;
+//   } catch (error) {
+//     console.log("🚀 ~ generateCertificates ~ error:", error);
+//     res.status(500).json({
+//       error: "Server error in generating certificates",
+//     });
+//   }
+// };
+
+
 
 // export const generateCertificates: RequestHandler = async (
 //   req: Request,
@@ -532,7 +533,196 @@ export const generateCertificates: RequestHandler = async (
 //   }
 // };
 
+export const generateCertificates: RequestHandler = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const partnerAuth = req.auth["PARTNER"];
+    if (!partnerAuth) {
+      res.status(401).json({
+        error: INVALID_SESSION_MSG,
+      });
+      return;
+    }
+    const { trainingId: trainingIdUnsafe } = req.params;
+    const trainingId = z.string().uuid().safeParse(trainingIdUnsafe);
+    if (!trainingId.success) {
+      res.status(400).json({
+        error: "Invalid training ID",
+      });
+      return;
+    }
+    const enrolmentIdsUnsafe = req.body;
+    const enrolmentIdsParsed = z
+      .array(z.string().uuid("Invalid IDs"))
+      .min(1, "Atleast one enrolment need to be selected")
+      .safeParse(enrolmentIdsUnsafe);
+    if (!enrolmentIdsParsed.success) {
+      res
+        .status(400)
+        .json({ errors: createValidationError(enrolmentIdsParsed) });
+      return;
+    }
+    
+    const trainingEnrolments = await db.query.trainingTable.findFirst({
+      with: {
+        enrolments: {
+          columns: {
+            id: true,
+            paidOn: true,
+            certificate: true,
+            userId: true,
+          },
+          with: {
+            user: {
+              columns: {
+                firstName: true,
+                lastName: true,
+                mobile: true,
+                email: true,
+              },
+            },
+          },
+          where(fields, operators) {
+            return operators.inArray(fields.id, enrolmentIdsParsed.data);
+          },
+        },
+        ratings: {
+          columns: {
+            feedback: true,
+            rating: true,
+            userId: true,
+            completedOn: true,
+          },
+        },
+        instructor: {
+          columns: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      where(fields, operators) {
+        return operators.and(
+          operators.eq(fields.createdBy, partnerAuth.id),
+          operators.eq(fields.id, trainingId.data),
+        );
+      },
+    });
+    
+    if (!trainingEnrolments || !(trainingEnrolments.enrolments.length > 0)) {
+      res.status(404).json({
+        error: "Could not find such course or course has no enrolments!",
+      });
+      return;
+    }
+    
+    if (
+      !trainingEnrolments.enrolments.every((enr) => {
+        const ratingByUser = trainingEnrolments.ratings.find(
+          (rat) => rat.userId === enr.userId,
+        );
+        return ratingByUser?.feedback && ratingByUser.rating;
+      })
+    ) {
+      res.status(403).json({
+        error:
+          "Not all selected enrolments have given rating and feedbacks! Please reselect appropriate candidates!",
+      });
+      return;
+    }
 
+    // Filter enrolments that don't have certificates yet
+    const enrolmentsToProcess = trainingEnrolments.enrolments.filter(
+      (enr) => !enr.certificate
+    );
+    
+    if (enrolmentsToProcess.length === 0) {
+      res.status(400).json({
+        error: "All selected students already have certificates generated!",
+      });
+      return;
+    }
+
+    console.log(`🚀 Generating ${enrolmentsToProcess.length} certificates directly...`);
+
+    // First, update database to show "generating" status
+    await Promise.all(
+      enrolmentsToProcess.map(async (enr) => {
+        await db
+          .update(trainingEnrolmentTable)
+          .set({ certificate: "generating" })
+          .where(eq(trainingEnrolmentTable.id, enr.id));
+      })
+    );
+
+    // Generate certificates directly (no Redis)
+    const results = await Promise.allSettled(
+      enrolmentsToProcess.map(async (enr) => {
+        const certificateId = nanoid(30);
+        const ratingByUser = trainingEnrolments.ratings.find(
+          (rat) => rat.userId === enr.userId,
+        )!;
+        
+        const certificateData = {
+          name: enr.user?.firstName + " " + (enr.user?.lastName ?? ""),
+          courseName: trainingEnrolments.title,
+          completedOn: ratingByUser.completedOn!,
+          certificateId,
+          enrolmentId: enr.id,
+          instructor:
+            trainingEnrolments.instructor?.firstName +
+            " " +
+            (trainingEnrolments.instructor?.lastName ?? ""),
+        };
+        
+        console.log(`🚀 Generating certificate for: ${certificateData.name}`);
+        
+        // Call your existing generateCertificate function directly
+        const success = await generateCertificate(certificateData);
+        
+        if (!success) {
+          // Reset certificate status on failure
+          await db
+            .update(trainingEnrolmentTable)
+            .set({ certificate: null })
+            .where(eq(trainingEnrolmentTable.id, enr.id));
+          throw new Error(`Failed to generate certificate for ${certificateData.name}`);
+        }
+        
+        return { success: true, name: certificateData.name };
+      })
+    );
+
+    // Count successes and failures
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+
+    if (failed > 0) {
+      console.error(`❌ ${failed} certificates failed to generate`);
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`Failed certificate ${index + 1}:`, result.reason);
+        }
+      });
+    }
+
+    console.log(`✅ Successfully generated ${successful} certificates`);
+    
+    res.json({
+      message: `Successfully generated ${successful} certificates${failed > 0 ? `. ${failed} failed.` : '.'}`,
+      successful,
+      failed,
+    });
+    return;
+  } catch (error) {
+    console.log("🚀 ~ generateCertificates ~ error:", error);
+    res.status(500).json({
+      error: "Server error in generating certificates",
+    });
+  }
+};
 
 export const generateUploadSignature: RequestHandler = async (
   req: Request,
