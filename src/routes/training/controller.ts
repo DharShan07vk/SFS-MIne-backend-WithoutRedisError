@@ -144,9 +144,12 @@ export const createTraining: RequestHandler = async (
       return;
     }
     const rawData = req.body;
+    
+    console.log("🚀 ~ createTraining ~ rawData:", rawData);
 
     const courseCreationParsed = newCourseFormSchema.safeParse({
       ...rawData,
+      cost: Number(rawData.cost),
       lessons: rawData.lessons ? JSON.parse(rawData.lessons) : undefined,
       cover:
         !req.file || !req.file.buffer
@@ -155,9 +158,11 @@ export const createTraining: RequestHandler = async (
               type: req.file!.mimetype,
             }),
     });
-    console.dir(courseCreationParsed, { depth: 10 });
+    
+    console.log("🚀 ~ createTraining ~ parsed:", courseCreationParsed);
 
     if (!courseCreationParsed.success) {
+      console.log("🚀 ~ createTraining ~ errors:", courseCreationParsed.error);
       res.status(400).json({
         errors: createValidationError(courseCreationParsed),
       });
@@ -181,17 +186,22 @@ export const createTraining: RequestHandler = async (
     }
 
     const { data } = courseCreationParsed;
-    const { data: coverImageURL, error } = await supabase.storage
-      .from("s4s-media")
-      .upload(`public/course-covers/${slugify(data.title)}.jpg`, data.cover, {
-        upsert: true,
-      });
+    
+    let coverImageURL = null;
+    if (data.cover) {
+      const { data: uploadResult, error } = await supabase.storage
+        .from("s4s-media")
+        .upload(`public/course-covers/${slugify(data.title)}.jpg`, data.cover, {
+          upsert: true,
+        });
 
-    if (error) {
-      res.status(500).json({
-        error: "Server error in uploading file!",
-      });
-      return;
+      if (error) {
+        res.status(500).json({
+          error: "Server error in uploading file!",
+        });
+        return;
+      }
+      coverImageURL = SUPABASE_PROJECT_URL + "/storage/v1/object/public/" + uploadResult.fullPath;
     }
 
     await db.transaction(async (tx) => {
@@ -207,18 +217,17 @@ export const createTraining: RequestHandler = async (
           location: data.location || null,
           type: data.type,
           link: data.trainingLink || null,
-          coverImg:
-            SUPABASE_PROJECT_URL +
-            "/storage/v1/object/public/" +
-            coverImageURL.fullPath,
+          coverImg: coverImageURL,
           category: data.category,
         })
         .returning();
 
-      if (training.type !== "OFFLINE" && data.lessons) {
+      if (data.type !== "OFFLINE" && data.lessons && data.lessons.length > 0) {
         await tx.insert(trainingLessonTable).values(
           data.lessons.map((lesson, index) => {
             const currDate = new Date(data.startDate);
+            currDate.setDate(currDate.getDate() + index);
+            
             return {
               type: lesson.type,
               title: lesson.title,
@@ -226,17 +235,18 @@ export const createTraining: RequestHandler = async (
               video: lesson.type === "ONLINE" ? lesson.video : undefined,
               location: lesson.type === "OFFLINE" ? lesson.location : undefined,
               trainingId: training.id,
-              lastDate: new Date(currDate.setDate(currDate.getDate() + index)),
+              lastDate: currDate,
             };
           }),
         );
       }
     });
-    res.json({ message: "Course module created successfuly!" });
+    
+    res.json({ message: "Course module created successfully!" });
   } catch (error) {
-    console.log("🚀 ~ getTrainings ~ error:", error);
+    console.log("🚀 ~ createTraining ~ error:", error);
     res.status(500).json({
-      error: "Server error in fetching training details",
+      error: "Server error in creating training course",
     });
   }
 };

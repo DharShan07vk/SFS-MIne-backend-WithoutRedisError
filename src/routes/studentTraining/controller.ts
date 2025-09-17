@@ -65,130 +65,12 @@ export const getTrainings: RequestHandler = async (
   }
 };
 
-// export const getTraining: RequestHandler = async (
-//   req: Request,
-//   res: Response,
-// ) => {
-//   try {
-//     const studentAuth = req.auth?.["STUDENT"];
-//     const { trainingId: trainingIdUnsafe } = req.params;
-//     const trainingId = z.string().uuid().safeParse(trainingIdUnsafe);
-//     if (!trainingId.success) {
-//       res.status(400).json({
-//         error: "Invalid training ID",
-//       });
-//       return;
-//     }
-
-//     const training = await db.query.trainingTable.findFirst({
-//       with: {
-//         instructor: {
-//           columns: {
-//             firstName: true,
-//             lastName: true,
-//             institutionName: true,
-//           },
-//         },
-//         enrolments: {
-//           where(fields, operators) {
-//             return operators.and(
-//               operators.eq(fields.trainingId, trainingId.data),
-//               studentAuth
-//                 ? operators.eq(fields.userId, studentAuth?.id)
-//                 : sql`false`,
-//             );
-//           },
-//           limit: 1,
-//           with: {
-//             transactions: {
-//               columns: {
-//                 amount: true,
-//                 status: true,
-//                 txnNo: true,
-//               },
-//             },
-//           },
-//         },
-//         ratings: {
-//           columns: {
-//             rating: true,
-//             feedback: true,
-//             completedOn: true,
-//           },
-//           where(fields, operators) {
-//             return studentAuth
-//               ? operators.eq(fields.userId, studentAuth.id)
-//               : sql`false`;
-//           },
-//         },
-//         lessons: true,
-//       },
-//       where(fields, operators) {
-//         return operators.eq(fields.id, trainingId.data);
-//       },
-//       columns: {
-//         id: true,
-//         title: true,
-//         coverImg: true,
-//         startDate: true,
-//         endDate: true,
-//         description: true,
-//         location: true,
-//         cost: true,
-//         createdAt: true,
-//         type: true,
-//         link: studentAuth?.id ? true : false,
-//       },
-//     });
-//     if (!training) {
-//       res.status(404).json({
-//         error: "Could not find such course!",
-//       });
-//       return;
-//     }
-//     const isEnrolled =
-//       training?.enrolments?.[0]?.transactions?.some(
-//         (d) =>
-//           Number(d.amount) === Number(training.cost) && d.status === "success",
-//       ) ?? false;
-//     // @ts-expect-error nee mooditu iru pa
-//     !isEnrolled && delete training?.link;
-//     res.json({
-//       data: {
-//         ...training,
-//         isEnrolled,
-//         displayFeedback: training?.endDate
-//           ? new Date(training?.endDate) < new Date()
-//             ? true
-//             : false
-//           : false,
-//         lessons: isEnrolled
-//           ? (training.lessons?.filter((lesson) =>
-//               lesson.lastDate ? new Date(lesson.lastDate) < new Date() : true,
-//             ) ?? [])
-//           : undefined,
-//       },
-//     });
-//   } catch (error) {
-//     console.log("🚀 ~ getTrainings ~ error:", error);
-//     res.status(500).json({
-//       error: "Server error in fetching training details",
-//     });
-//   }
-// };
-
 export const getTraining: RequestHandler = async (
   req: Request,
   res: Response,
 ) => {
   try {
     const studentAuth = req.auth?.["STUDENT"];
-    if (!studentAuth) {
-      res.status(401).json({
-        error: INVALID_SESSION_MSG,
-      });
-      return;
-    }
     const { trainingId: trainingIdUnsafe } = req.params;
     const trainingId = z.string().uuid().safeParse(trainingIdUnsafe);
     if (!trainingId.success) {
@@ -205,33 +87,39 @@ export const getTraining: RequestHandler = async (
             firstName: true,
             lastName: true,
             institutionName: true,
-            mobile: true,
-            email: true,
-          },
-          with: {
-            address: true,
           },
         },
         lessons: true,
-        ratings: true,
         enrolments: {
-          columns: {
-            id: true,
-            completedOn: true,
-            createdAt: true,
-            certificate: true,
-            paidOn: true,
+          where(fields, operators) {
+            return operators.and(
+              operators.eq(fields.trainingId, trainingId.data),
+              studentAuth
+                ? operators.eq(fields.userId, studentAuth?.id)
+                : sql`false`,
+            );
           },
+          limit: 1,
           with: {
-            user: {
+            transactions: {
               columns: {
-                firstName: true,
-                lastName: true,
-                mobile: true,
-                email: true,
-                id: true,
+                amount: true,
+                status: true,
+                txnNo: true,
               },
             },
+          },
+        },
+        ratings: {
+          columns: {
+            rating: true,
+            feedback: true,
+            completedOn: true,
+          },
+          where(fields, operators) {
+            return studentAuth
+              ? operators.eq(fields.userId, studentAuth.id)
+              : sql`false`;
           },
         },
       },
@@ -239,14 +127,62 @@ export const getTraining: RequestHandler = async (
         return operators.eq(fields.id, trainingId.data);
       },
     });
-    res.json({ data: training ?? {} });
+
+    if (!training) {
+      res.status(404).json({
+        error: "Could not find such course!",
+      });
+      return;
+    }
+
+    // Check if user is enrolled by verifying successful payment
+    const isEnrolled =
+      training?.enrolments?.[0]?.transactions?.some(
+        (transaction) =>
+          Number(transaction.amount) === Number(training.cost) &&
+          transaction.status === "success",
+      ) ?? false;
+
+    // Create response object with proper fields
+    const responseData = {
+      id: training.id,
+      title: training.title,
+      coverImg: training.coverImg,
+      startDate: training.startDate,
+      endDate: training.endDate,
+      description: training.description,
+      location: training.location,
+      cost: training.cost,
+      createdAt: training.createdAt,
+      type: training.type,
+      category: training.category,
+      instructor: training.instructor,
+      enrolments: training.enrolments,
+      ratings: training.ratings,
+      isEnrolled,
+      displayFeedback: training?.endDate
+        ? new Date(training?.endDate) < new Date()
+          ? true
+          : false
+        : false,
+      // Only include link if user is enrolled
+      ...( training.link && { link: training.link }),
+      // Only include lessons if user is enrolled, and filter by date
+      lessons:  (training.lessons)
+       
+    };
+    console.log("🚀 ~ getTraining ~ responseData:", responseData);
+    res.json({
+      data: responseData,
+    });
   } catch (error) {
-    console.log("🚀 ~ getTrainings ~ error:", error);
+    console.log("🚀 ~ getTraining ~ error:", error);
     res.status(500).json({
       error: "Server error in fetching training details",
     });
   }
 };
+
 export const captureFeedback: RequestHandler = async (
   req: Request,
   res: Response,

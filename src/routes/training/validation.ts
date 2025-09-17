@@ -1,5 +1,22 @@
 import { z } from "zod";
 
+const onlineLessonSchema = z.object({
+  type: z.literal("ONLINE"),
+  title: z.string().min(1, "Lesson title is required"),
+  content: z.string().min(1, "Lesson content is required"),
+  video: z.string().url("Valid video URL is required"),
+  id: z.number(),
+});
+
+const offlineLessonSchema = z.object({
+  type: z.literal("OFFLINE"),
+  title: z.string().min(1, "Lesson title is required"),
+  location: z.string().min(1, "Location is required"),
+  id: z.number(),
+});
+
+const lessonSchema = z.union([onlineLessonSchema, offlineLessonSchema]);
+
 export const newCourseFormSchema = z
   .object({
     title: z.string().min(1, "Title is required"),
@@ -84,5 +101,12 @@ export const newCourseFormSchema = z
       (data.lessons && data.lessons.length > 0),
     {
       message: "Lessons are required for ONLINE/HYBRID courses",
+    },
+  )
+  .refine(
+    (data) =>
+      !["OFFLINE"].includes(data.type) || (data.location && data.location.length > 0),
+    {
+      message: "Location is required for OFFLINE courses",
     },
   );
