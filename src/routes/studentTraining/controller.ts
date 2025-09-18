@@ -52,6 +52,7 @@ export const getTrainings: RequestHandler = async (
         description: true,
         location: true,
         cost: true,
+        type: true,
         createdAt: true,
         category: true,
       },
