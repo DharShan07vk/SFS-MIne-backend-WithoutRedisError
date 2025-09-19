@@ -17,6 +17,7 @@ export interface PDFGenerationType {
   instructor: string;
   startDate: string;  // Add this
   endDate: string;    // Add this
+  logo?: string | null; // Add this
   digitalSignUrl?: string | null;  // Add this
 }
 

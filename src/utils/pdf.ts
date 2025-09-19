@@ -203,6 +203,48 @@ export async function generateCertificate(data: PDFGenerationType) {
       }
     }
 
+    if(data.logo){
+      try{
+        const logoResponse = await fetch(data.logo);
+        if(logoResponse.ok){
+          const logoBytes = await logoResponse.arrayBuffer();
+          let logoImage;
+          const contentType = logoResponse.headers.get('content-type');
+
+          if (contentType?.includes('png')) {
+            logoImage = await pdfDoc.embedPng(logoBytes);
+          } else if (contentType?.includes('jpeg') || contentType?.includes('jpg')) {
+            logoImage = await pdfDoc.embedJpg(logoBytes);
+          } else {
+            // Default to PNG if content type is unclear
+            logoImage = await pdfDoc.embedPng(logoBytes);
+          }
+          
+
+          // Calculate signature dimensions and position
+          const signatureWidth = 80; // Adjust as needed
+          const signatureHeight = 80; // Adjust as needed
+          const signatureX = 255; 
+          const signatureY = 721; 
+
+          // Draw the logo
+          firstPage.drawImage(logoImage, {
+            x: signatureX,
+            y: signatureY,
+            width: signatureWidth,
+            height: signatureHeight,
+          });
+
+          console.log("Logo added to certificate");
+        } else {
+          console.warn("Could not fetch logo image");
+        }
+      } catch (logoError) {
+        console.error("Error adding logo:", logoError);
+        // Continue without logo if there's an error
+      }
+    }
+
     // Add certificate ID
     firstPage.drawText(data.certificateId, {
       x: 120,

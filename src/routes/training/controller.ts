@@ -622,6 +622,7 @@ export const generateCertificates: RequestHandler = async (
           columns: {
             firstName: true,
             lastName: true,
+            logo: true, // Instructor logo URL
             digitalSign: true, // Digital signature URL
           },
         },
@@ -701,11 +702,13 @@ export const generateCertificates: RequestHandler = async (
           startDate: formatDateToString(trainingEnrolments.startDate), // Convert Date to string
           endDate: formatDateToString(trainingEnrolments.endDate),     // Convert Date to string
           digitalSignUrl: trainingEnrolments.instructor?.digitalSign || null,
+          logo : trainingEnrolments.instructor?.logo || null,
         };
         
         console.log(`🚀 Generating certificate for: ${certificateData.name}`);
         console.log(`🚀 Course dates: ${certificateData.startDate} to ${certificateData.endDate}`);
         console.log(`🚀 Digital sign URL: ${certificateData.digitalSignUrl}`);
+        console.log(`🚀 Logo URL: ${certificateData.logo}`);
         
         // Call your existing generateCertificate function directly
         const success = await generateCertificate(certificateData);
