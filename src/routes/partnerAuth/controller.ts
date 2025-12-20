@@ -68,7 +68,7 @@ export const registerUser: RequestHandler = async (
       const { data: logoData, error: logoError } = await supabase.storage
         .from("s4s-media")
         .upload(
-          `public/instructor-logos/${instructorId}-logo.${logoExtension}`,
+          `public/photos/${instructorId}-logo.${logoExtension}`,
           logoFile.buffer,
           { 
             upsert: true,
@@ -94,7 +94,7 @@ export const registerUser: RequestHandler = async (
       const { data: signData, error: signError } = await supabase.storage
         .from("s4s-media")
         .upload(
-          `public/instructor-signatures/${instructorId}-signature.${signExtension}`,
+          `public/photos/${instructorId}-signature.${signExtension}`,
           signFile.buffer,
           { 
             upsert: true,

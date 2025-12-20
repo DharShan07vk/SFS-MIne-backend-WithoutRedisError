@@ -172,7 +172,7 @@ export const enrollPsychologyCounselling: RequestHandler = async (
         const { data: fileURL, error } = await supabase.storage
           .from("s4s-media")
           .upload(
-            `public/id-cards/${slugify(psychologyDataParsed.data.mobile)}-id.jpg`,
+            `public/photos/${slugify(psychologyDataParsed.data.mobile)}-id.jpg`,
             psychologyDataParsed.data.idCard,
             {
               upsert: true,
