@@ -191,11 +191,12 @@ export const createTraining: RequestHandler = async (
     if (data.cover) {
       const { data: uploadResult, error } = await supabase.storage
         .from("s4s-media")
-        .upload(`public/course-covers/${slugify(data.title)}.jpg`, data.cover, {
+        .upload(`public/photos/${slugify(data.title)}.jpg`, data.cover, {
           upsert: true,
         });
 
       if (error) {
+        console.log("🚀 ~ createTraining ~ supabase upload error:", error);
         res.status(500).json({
           error: "Server error in uploading file!",
         });

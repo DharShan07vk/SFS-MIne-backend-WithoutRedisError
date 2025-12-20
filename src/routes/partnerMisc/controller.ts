@@ -544,14 +544,14 @@ export const savePartnerProfile: RequestHandler = async (
         if (oldLogoPath) {
           await supabase.storage
             .from("s4s-media")
-            .remove([`public/instructor-logos/${oldLogoPath}`]);
+            .remove([`public/photos/${oldLogoPath}`]);
         }
       }
       
       const { data: logoData, error: logoError } = await supabase.storage
         .from("s4s-media")
         .upload(
-          `public/instructor-logos/${partnerAuth.id}-logo-${Date.now()}.${logoExtension}`,
+          `public/photos/${partnerAuth.id}-logo-${Date.now()}.${logoExtension}`,
           logoFile.buffer,
           { 
             upsert: true,
@@ -580,14 +580,14 @@ export const savePartnerProfile: RequestHandler = async (
         if (oldSignPath) {
           await supabase.storage
             .from("s4s-media")
-            .remove([`public/instructor-signatures/${oldSignPath}`]);
+            .remove([`public/photos/${oldSignPath}`]);
         }
       }
       
       const { data: signData, error: signError } = await supabase.storage
         .from("s4s-media")
         .upload(
-          `public/instructor-signatures/${partnerAuth.id}-signature-${Date.now()}.${signExtension}`,
+          `public/photos/${partnerAuth.id}-signature-${Date.now()}.${signExtension}`,
           signFile.buffer,
           { 
             upsert: true,
