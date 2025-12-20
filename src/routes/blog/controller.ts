@@ -119,7 +119,7 @@ export const createBlog: RequestHandler = async (
     const { data, error } = await supabase.storage
       .from("s4s-media")
       .upload(
-        "public/blog-covers/" + blogSlug + ".jpg",
+        "public/photos/" + blogSlug + ".jpg",
         blogEntry.data.coverImage,
         { upsert: true },
       );
