@@ -23,7 +23,7 @@ import { CERT_QUEUE_NAME, PDFGenerationType} from "./redis";
 import {redis} from "./redis"
 import { generateCertificate } from "./utils/pdf";
 import homeRouter from "./routes/home/route";
-import otpRouter from "./routes/otp/route"
+import emailRouter from "./routes/email/route"
 
 import enquiryRouter from "./routes/enquiry/route";
 import adminApplicationsRouter from "./routes/adminEnquiry/route";
@@ -107,7 +107,7 @@ app.use("/enquiry", enquiryRouter);
 app.use("/payments", paymentRouter);
 app.use("/home", homeRouter);
 
-app.use("/otp", otpRouter);
+app.use("/email", emailRouter);
 
 app.use("/testing", testRouter);
 
