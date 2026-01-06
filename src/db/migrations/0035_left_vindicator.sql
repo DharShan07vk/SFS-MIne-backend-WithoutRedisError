@@ -1,0 +1,2 @@
+ALTER TABLE "individual_institution" DROP CONSTRAINT "individual_institution_mobile_unique";--> statement-breakpoint
+ALTER TABLE "individual_institution" DROP CONSTRAINT "individual_institution_email_unique";

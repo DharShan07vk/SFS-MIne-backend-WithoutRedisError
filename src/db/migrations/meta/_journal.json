@@ -246,6 +246,20 @@
       "when": 1767686080674,
       "tag": "0034_redundant_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1767691334282,
+      "tag": "0035_left_vindicator",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1767692306401,
+      "tag": "0036_loud_forge",
+      "breakpoints": true
     }
   ]
 }
