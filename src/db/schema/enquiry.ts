@@ -24,8 +24,8 @@ export const IndividualOrInstitutionEnum = pgEnum("ind-int-type",["individual","
 export const IndividualInstitutiontable = pgTable("individual_institution", {
   id : uuid().primaryKey().defaultRandom(),
   name : varchar({length: 200}).notNull(),
-  mobile : char({length: 10}).notNull().unique(),
-  email : varchar({length: 200}).notNull().unique(),
+  mobile : char({length: 10}).notNull(),
+  email : varchar({length: 200}).notNull(),
   type : IndividualOrInstitutionEnum().notNull(),
   designation : varchar({length: 100}),
   organizationName : varchar({length: 200}),

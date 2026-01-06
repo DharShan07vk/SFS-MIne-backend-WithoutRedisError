@@ -42,7 +42,7 @@ export const instructorTable = pgTable("instructor", {
   mobile: char({ length: 10 }).notNull().unique(),
   hash: varchar().notNull(),
   salt: varchar().notNull(),
-  topics: varchar("topics").array(10),
+  topics: text("topics").array(),
   institutionName: varchar("institution_name", { length: 100 }),
   profileImageURL: text().unique(),
   addressId: integer("address_id").references(() => addressTable.id),

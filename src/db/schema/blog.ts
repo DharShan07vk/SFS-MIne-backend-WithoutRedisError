@@ -9,7 +9,7 @@ export const blogTable = pgTable("blog", {
   slug: varchar({ length: 221 }).notNull().unique(),
   content: text().notNull(),
   coverImage: varchar("cover_image"),
-  references: varchar("references").array(10),
+  references: text("references").array(),
   approvedBy: uuid("approved_by").references(() => adminTable.id),
   author: uuid("blog_author").references(() => blogAuthorTable.id),
   category: varchar({ length: 50 }),
