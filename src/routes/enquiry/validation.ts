@@ -12,7 +12,7 @@ export const IndividualOrInstitutionnSchema = z.object({
   .regex(/^[6789]\d{9}$/, "Mobile number is invalid"),
 
   email : z.string().email("Invalid email"),
-  type : z.enum(["Individual", "Institution"]),
+  type : z.enum(["individual", "nstitution"]),
   designation : z.string().max(100).nullish().or(z.literal("")),
   OrganizationName : z.string().max(200).nullish().or(z.literal("")),
   requirements : z.string().max(1000).nullish().or(z.literal("")),
@@ -20,7 +20,7 @@ export const IndividualOrInstitutionnSchema = z.object({
   serviceInterest : z.string().max(200).nullish().or(z.literal("")),
   selectedDate: z.string().min(2, "Select a valid date"),
   selectedTime: z.string().min(2, "Select a valid time"),
-  amount : z.string().nullish(),
+  amount : z.number().positive().nullish(),
 })
 
 // export const institutionPlanSchema = z.object({

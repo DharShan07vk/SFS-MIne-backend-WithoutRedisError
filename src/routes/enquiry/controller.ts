@@ -36,14 +36,16 @@ export const individualOrInstitutionRegistration: RequestHandler = async (req:Re
     console.log("🚀 ~ individualOrInstitutionRegistration ~ req.body:", req.body);
     const dataParsed = IndividualOrInstitutionnSchema.safeParse(req.body);
     if(!dataParsed.success){
-      res.status(400).json({errors: createValidationError(dataParsed)});
+      res.status(200).json({errors: createValidationError(dataParsed)});
+      console.log("🚀 ~ individualOrInstitutionRegistration ~ dataParsed:", dataParsed);
       return;
     }
       await db.transaction(async (tx) => {
       const { data } = dataParsed;
       
-      const FinalAmount = data.amount ? parseInt(data.amount) : 0;
-      const [InstitutionOrIndividual] = await tx
+      const FinalAmount = data.amount ? data.amount : 0;
+
+        const [InstitutionOrIndividual] = await tx
         .insert(IndividualInstitutiontable)
         .values({
           name: data.name,
@@ -61,7 +63,7 @@ export const individualOrInstitutionRegistration: RequestHandler = async (req:Re
         .returning();
 console.log("🚀 ~ individualOrInstitutionRegistration ~ InstitutionOrIndividual:", InstitutionOrIndividual);
       // create transaction
-      const referenceName = data.type === "Individual" ? "IND_" : "INST_";
+      const referenceName = data.type === "individual" ? "IND_" : "INST_";
       const referenceId = referenceName + nanoid();
       const order = await razorpay.orders.create({
         amount: FinalAmount,

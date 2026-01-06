@@ -253,7 +253,37 @@ export const verifyPayment: RequestHandler = async (
                 eq(enquiryTransactionTable.orderId, rzpyOrderId),
               ),
             );
-        } else {
+        } 
+        else if(referenceId.includes("IND_")){
+          await db.update(enquiryTransactionTable)
+          .set({
+            status: "failed",
+            paymentId: data.payload.payment.entity.id,
+            idempotencyId: rzpyIdempotencyId,
+          })
+          .where(
+            and (
+              eq(enquiryTransactionTable.txnNo, referenceId),
+              eq(enquiryTransactionTable.orderId, rzpyOrderId),
+            )
+          )
+
+        }
+        else if(referenceId.includes("INST_")){
+          await db.update(enquiryTransactionTable)
+          .set({
+            status: "failed",
+            paymentId: data.payload.payment.entity.id,
+            idempotencyId: rzpyIdempotencyId,
+          })
+          .where(
+            and(
+              eq(enquiryTransactionTable.txnNo, referenceId),
+              eq(enquiryTransactionTable.orderId, rzpyOrderId),
+            )
+          )
+        }
+        else {
           // normal tran process
           await db
             .update(transactionTable)
@@ -392,7 +422,34 @@ export const verifyPayment: RequestHandler = async (
               eq(enquiryTransactionTable.orderId, rzpyOrderId),
             ),
           );
-      } else {
+      } 
+      else if(referenceId.includes("IND_")){
+        await db.update(enquiryTransactionTable)
+        .set({  
+          status: "success",
+          paymentId: rzpySuccess.data.payload.payment.entity.id,
+          idempotencyId: rzpyIdempotencyId,
+        })
+        .where(
+          and(
+            eq(enquiryTransactionTable.txnNo, referenceId),
+            eq(enquiryTransactionTable.orderId, rzpyOrderId),
+          ) 
+        )}
+        else if(referenceId.includes("INST_")){
+        await db.update(enquiryTransactionTable)
+        .set({  
+          status: "success",
+          paymentId: rzpySuccess.data.payload.payment.entity.id,
+          idempotencyId: rzpyIdempotencyId,
+        })
+        .where(
+          and(
+            eq(enquiryTransactionTable.txnNo, referenceId),
+            eq(enquiryTransactionTable.orderId, rzpyOrderId),
+          ) 
+        )}
+      else {
         // normal tran process
         await db.transaction(async (tx) => {
           const [transaction] = await tx
