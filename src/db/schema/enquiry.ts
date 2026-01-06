@@ -19,6 +19,24 @@ import { transactionStatusEnum } from "./training";
 
 export const caEducationType = pgEnum("ca_edu_type", ["UG", "PG", "PhD"]);
 export const institutionPlans = pgEnum("inst_plans", ["Basics", "Premium"]);
+export const IndividualOrInstitutionEnum = pgEnum("ind-int-type",["individual","institution"]);
+
+export const IndividualInstitutiontable = pgTable("individual_institution", {
+  id : uuid().primaryKey().defaultRandom(),
+  name : varchar({length: 200}).notNull(),
+  mobile : char({length: 10}).notNull().unique(),
+  email : varchar({length: 200}).notNull().unique(),
+  type : IndividualOrInstitutionEnum().notNull(),
+  designation : varchar({length: 100}),
+  organizationName : varchar({length: 200}),
+  requirements : text(),
+  concerns : text(),
+  serviceInterest : varchar({length: 200}),
+  selectedDate: varchar("selectedDate", { length: 20 }), // e.g., "2023-10-15"
+  selectedTime: varchar("selectedTime", { length: 20 }), // e.g., "10:30 AM", "2:30 PM"
+  ...timestamps(),
+});
+
 
 export const institutionPlanTable = pgTable("institution_plan", {
   id: uuid().primaryKey().defaultRandom(),
@@ -89,6 +107,17 @@ export const psychologyTransactionTable = pgTable("psychology_transaction", {
   id: uuid().primaryKey().defaultRandom(),
   psychologyId: uuid("psych_req_id")
     .references(() => psychologyTrainingTable.id)
+    .notNull(),
+  transactionId: uuid("transaction_id")
+    .references(() => enquiryTransactionTable.id)
+    .notNull(),
+  ...timestamps(),
+});
+
+export const IndividualInstitutionTransactionTable = pgTable("individual_institution_transaction", {
+  id: uuid().primaryKey().defaultRandom(),
+  Id: uuid("individual_institution_id")
+    .references(() => IndividualInstitutiontable.id)
     .notNull(),
   transactionId: uuid("transaction_id")
     .references(() => enquiryTransactionTable.id)
@@ -188,5 +217,26 @@ export const careerCounsellingRelations = relations(
   careerCounsellingTable,
   ({ many }) => ({
     transactions: many(careerCounsellingTransactionTable),
+  }),
+);
+
+export const IndividualInstitutionTransactionTableRelations = relations(
+  IndividualInstitutionTransactionTable,
+  ({ one }) => ({
+    individualInstitution: one(IndividualInstitutiontable, {
+      fields: [IndividualInstitutionTransactionTable.Id],
+      references: [IndividualInstitutiontable.id],
+    }),
+    transaction: one(enquiryTransactionTable, {
+      fields: [IndividualInstitutionTransactionTable.transactionId],
+      references: [enquiryTransactionTable.id],
+    }),
+  }),
+);
+
+export const IndividualInstitutionTableRelations = relations(
+  IndividualInstitutiontable,
+  ({ many }) => ({
+    transactions: many(IndividualInstitutionTransactionTable),
   }),
 );

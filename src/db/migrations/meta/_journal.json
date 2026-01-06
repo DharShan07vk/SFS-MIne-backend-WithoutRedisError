@@ -239,6 +239,13 @@
       "when": 1757441408420,
       "tag": "0033_busy_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1767686080674,
+      "tag": "0034_redundant_dreadnoughts",
+      "breakpoints": true
     }
   ]
 }
