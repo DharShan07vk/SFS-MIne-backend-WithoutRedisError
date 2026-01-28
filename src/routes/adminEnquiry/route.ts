@@ -2,23 +2,22 @@ import { Router } from "express";
 import { requireAuthToken } from "../../middleware";
 import {
   getCAApplications,
-  getCareerCounselling,
   getInstitutionRegistrations,
-  getPsychologyTrainings,
+  getIndividualTrainings,
 } from "./controller";
 
 const adminApplicationsRouter = Router();
 
 adminApplicationsRouter.get(
-  "/psychology",
+  "/individual",
   requireAuthToken("ADMIN"),
-  getPsychologyTrainings,
+  getIndividualTrainings,
 );
-adminApplicationsRouter.get(
-  "/career",
-  requireAuthToken("ADMIN"),
-  getCareerCounselling,
-);
+// adminApplicationsRouter.get(
+//   "/career",
+//   requireAuthToken("ADMIN"),
+//   getCareerCounselling,
+// );
 adminApplicationsRouter.get(
   "/ca",
   requireAuthToken("ADMIN"),
