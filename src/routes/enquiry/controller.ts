@@ -93,7 +93,7 @@ console.log("🚀 ~ individualOrInstitutionRegistration ~ InstitutionOrIndividua
         partial_payment: false,
         notes: {
           reason: `Payment by ${InstitutionOrIndividual.name })}`,
-          original_amount: String(FinalAmount),
+          original_amount: String(FinalAmount/100),
           service_type: data.type,
           selected_item: data.serviceInterest || "",
         },
@@ -103,7 +103,7 @@ console.log("🚀 ~ individualOrInstitutionRegistration ~ InstitutionOrIndividua
       const [transaction] = await tx
         .insert(enquiryTransactionTable)
         .values({ 
-          amount: String(FinalAmount), // Store the final amount to be paid
+          amount: String(FinalAmount/100), // Store the final amount to be paid
           status: "pending",
           txnNo: referenceId,
           orderId: order.id,
