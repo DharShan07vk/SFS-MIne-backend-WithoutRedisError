@@ -76,7 +76,7 @@ console.log("🚀 ~ individualOrInstitutionRegistration ~ InstitutionOrIndividua
       const referenceName = data.type === "individual" ? "IND_" : "INST_";
       const referenceId = referenceName + nanoid();
       const order = await razorpay.orders.create({
-        amount: FinalAmount,
+        amount: FinalAmount/100,
         currency: "INR",
         customer_details: {
           name:
@@ -119,7 +119,7 @@ console.log("🚀 ~ individualOrInstitutionRegistration ~ InstitutionOrIndividua
       res.json({
         success: true,
         data: {
-          amount: String(FinalAmount), // Return the discounted amount
+          amount: String(FinalAmount/100), // Return the discounted amount
           orderId: order.id,
         },
       });
