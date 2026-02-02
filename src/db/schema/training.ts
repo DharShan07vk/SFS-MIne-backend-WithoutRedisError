@@ -30,12 +30,7 @@ export const transactionStatusEnum = pgEnum("transaction_status", [
   "failed",
 ]);
 
-export const trainingCategoryEnum = pgEnum("training_category", [
-  "Seminars/Webinar/Mentorship",
-  "Certificate Program",
-  "Corporate Training Program",
-  "Instrumentation Hands-on",
-]);
+
 
 export const trainingTypeEnum = pgEnum("training_type", [
   "ONLINE",
@@ -57,7 +52,7 @@ export const trainingTable = pgTable("training", {
   cost: varchar({ length: 10 }),
   type: trainingTypeEnum("type"),
   color: varchar("color", { length: 30 }),
-  category: trainingCategoryEnum("category"),
+  category: varchar({ length: 200 }), 
   createdBy: uuid("created_by").references(() => instructorTable.id),
   approvedBy: uuid("approved_by").references(() => adminTable.id),
   cut: integer(),

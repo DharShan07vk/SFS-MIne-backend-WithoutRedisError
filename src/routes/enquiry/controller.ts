@@ -76,7 +76,7 @@ console.log("🚀 ~ individualOrInstitutionRegistration ~ InstitutionOrIndividua
       const referenceName = data.type === "individual" ? "IND_" : "INST_";
       const referenceId = referenceName + nanoid();
       const order = await razorpay.orders.create({
-        amount: FinalAmount/100,
+        amount: FinalAmount,
         currency: "INR",
         customer_details: {
           name:
