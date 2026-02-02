@@ -1,0 +1,1 @@
+ALTER TABLE "training" ADD COLUMN "course_type" varchar(100);

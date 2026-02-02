@@ -267,6 +267,13 @@
       "when": 1770023492726,
       "tag": "0037_talented_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1770025043185,
+      "tag": "0038_boring_princess_powerful",
+      "breakpoints": true
     }
   ]
 }

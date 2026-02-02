@@ -50,6 +50,7 @@ export const trainingTable = pgTable("training", {
   durationType: durationTypeEnum("duration_type"),
   location: varchar({ length: 200 }),
   cost: varchar({ length: 10 }),
+  courseType: varchar({ length: 100 }),
   type: trainingTypeEnum("type"),
   color: varchar("color", { length: 30 }),
   category: varchar({ length: 200 }), 
