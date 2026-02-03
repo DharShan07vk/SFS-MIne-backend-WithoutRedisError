@@ -66,6 +66,132 @@ export const getTrainings: RequestHandler = async (
   }
 };
 
+export const getskillDevelopments: RequestHandler = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const studentAuth = req.auth?.["STUDENT"];
+    const trainings = await db.query.trainingTable.findMany({
+      with: {
+        instructor: {
+          columns: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        enrolments: {
+          where(fields, operators) {
+            return studentAuth
+              ? operators.eq(fields.userId, studentAuth?.id)
+              : sql`false`;
+          },
+          with: {
+            transactions: {
+              columns: {
+                amount: true,
+                status: true,
+              },
+            },
+          },
+        },
+      },
+      where(fields, operators) {
+        return operators.and(
+          operators.eq(fields.courseType, "Skill Development"),
+          operators.isNotNull(fields.approvedBy)
+        );
+      },
+      orderBy(fields, operators) {
+        return operators.desc(fields.startDate);
+      },
+      columns: {
+        id: true,
+        title: true,
+        coverImg: true,
+        startDate: true,
+        endDate: true,
+        description: true,
+        whoIsItFor:true,
+        whatYouWillLearn:true,
+        location: true,
+        cost: true,
+        type: true,
+        courseType:true,
+        createdAt: true,
+        category: true,
+      },
+    });
+    console.log("🚀 ~ getskillDevelopments ~ trainings:", trainings);
+    res.json({ data: trainings });
+  } catch (error) {
+    console.log("🚀 ~ getTrainings ~ error:", error);
+    res.status(500).json({
+      error: "Server error in fetching training details",
+    });
+  }
+};
+
+
+export const getFinishingSchools: RequestHandler = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const studentAuth = req.auth?.["STUDENT"];
+    const trainings = await db.query.trainingTable.findMany({
+      with: {
+        instructor: {
+          columns: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        enrolments: {
+          where(fields, operators) {
+            return studentAuth
+              ? operators.eq(fields.userId, studentAuth?.id)
+              : sql`false`;
+          },
+          with: {
+            transactions: {
+              columns: {
+                amount: true,
+                status: true,
+              },
+            },
+          },
+        },
+      },
+      where(fields, operators) {
+        return operators.isNotNull(fields.approvedBy);
+      },
+      orderBy(fields, operators) {
+        return operators.desc(fields.startDate);
+      },
+      columns: {
+        id: true,
+        title: true,
+        coverImg: true,
+        startDate: true,
+        endDate: true,
+        description: true,
+        location: true,
+        cost: true,
+        type: true,
+        createdAt: true,
+        category: true,
+      },
+    });
+    res.json({ data: trainings });
+  } catch (error) {
+    console.log("🚀 ~ getTrainings ~ error:", error);
+    res.status(500).json({
+      error: "Server error in fetching training details",
+    });
+  }
+};
+
 export const getTraining: RequestHandler = async (
   req: Request,
   res: Response,
@@ -156,6 +282,9 @@ export const getTraining: RequestHandler = async (
       cost: training.cost,
       createdAt: training.createdAt,
       type: training.type,
+      courseType: training.courseType,
+      whoIsItFor: training.whoIsItFor,
+      whatYouWillLearn: training.whatYouWillLearn,
       category: training.category,
       instructor: training.instructor,
       enrolments: training.enrolments,
