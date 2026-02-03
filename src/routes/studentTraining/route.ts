@@ -4,7 +4,7 @@ import { captureFeedback, getTraining, getTrainings, getskillDevelopments, getFi
 
 const studentTrainingRouter = Router();
 
-
+studentTrainingRouter.get("/", requireAuthToken("STUDENT", false), getTrainings);
 studentTrainingRouter.get(
   "/skill-developments",
   requireAuthToken("STUDENT", false),
