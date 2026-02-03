@@ -580,6 +580,15 @@ export const sendCourseRegistrationEmail: RequestHandler = async (req: Request, 
         });
         
         console.log(`Course registration email sent to ${userEmail}`);
+        // schedule reminders 24 hours and 1 hour before the class if startDate provided
+        try {
+            const startISO = startDate || additionalDetailsStartFromBody(req.body);
+            if (startISO) {
+                scheduleCourseReminders({ userEmail, userName, courseName, startISO });
+            }
+        } catch (sErr) {
+            console.error('Error scheduling reminders:', sErr);
+        }
         
     } catch (error) {
         console.error("Error sending course registration email:", error);
@@ -777,7 +786,16 @@ function generateCourseRegistrationEmail(details: any) {
     const courseName = additionalDetails?.course_name || 'Selected Course';
     const courseDuration = additionalDetails?.duration || 'To be confirmed';
     const startDate = additionalDetails?.start_date || 'To be announced';
-    
+    // Attempt to collect a meeting link and meeting start/end for .ics
+    const meetLink = additionalDetails?.meet_link || additionalDetails?.meetLink || '';
+    const startISO = additionalDetails?.start_date || transactionDate.toISOString();
+    const startObj = new Date(startISO);
+    const durationMinutes = Number(additionalDetails?.durationMinutes || 60);
+    const endObj = new Date(startObj.getTime() + durationMinutes * 60 * 1000);
+    const startUTC = formatDateToICS(startObj);
+    const endUTC = formatDateToICS(endObj);
+    const icsContent = generateICS({ courseName, startUTC, endUTC, meetLink, userName });
+
     return {
         from: {
             name: 'STEM for Society',
@@ -880,6 +898,14 @@ function generateCourseRegistrationEmail(details: any) {
                         <p><strong>Registration Date:</strong> ${transactionDate.toLocaleDateString()}</p>
                     </div>
 
+                    ${meetLink ? `
+                    <div style="margin: 10px 0;">
+                        <h4>🔗 Join Live Class</h4>
+                        <p><a href="${meetLink}">Click here to join the meeting</a></p>
+                        <p>We've attached a calendar invite (.ics) to this email — download and add it to your calendar.</p>
+                    </div>
+                    ` : ''}
+
                     <div class="payment-details">
                         <h4>💳 Payment Details:</h4>
                         <p><strong>Amount Paid:</strong> ${currency.toUpperCase()} ${amount}</p>
@@ -909,8 +935,58 @@ function generateCourseRegistrationEmail(details: any) {
             </body>
             </html>
         `,
-        text: `Course Registration Confirmed - ${courseName}. Payment of ${currency.toUpperCase()} ${amount} successful. Payment ID: ${paymentId}`
+                text: `Course Registration Confirmed - ${courseName}. Payment of ${currency.toUpperCase()} ${amount} successful. Payment ID: ${paymentId}`,
+                attachments: [
+                        {
+                                filename: `${courseName.replace(/[^a-z0-9]/gi, '_')}.ics`,
+                                content: icsContent,
+                                contentType: 'text/calendar; method=REQUEST; charset=UTF-8'
+                        }
+                ]
     };
+}
+
+// Helper: format JS Date to ICS UTC timestamp (YYYYMMDDTHHMMSSZ)
+function formatDateToICS(date: Date) {
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const yyyy = date.getUTCFullYear();
+        const mm = pad(date.getUTCMonth() + 1);
+        const dd = pad(date.getUTCDate());
+        const hh = pad(date.getUTCHours());
+        const min = pad(date.getUTCMinutes());
+        const ss = pad(date.getUTCSeconds());
+        return `${yyyy}${mm}${dd}T${hh}${min}${ss}Z`;
+}
+
+function generateICS({
+    courseName,
+    startUTC,
+    endUTC,
+    meetLink,
+    userName
+}: {
+    courseName: string;
+    startUTC: string;
+    endUTC: string;
+    meetLink?: string;
+    userName?: string;
+}) {
+    return `
+BEGIN:VCALENDAR
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:${Date.now()}@yourdomain.com
+SUMMARY:${courseName} – Live Class
+DTSTART:${startUTC}
+DTEND:${endUTC}
+DESCRIPTION:Hi ${userName || ''},\\n\\nJoin the live class using Google Meet:\\n${meetLink}
+LOCATION:Online
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR
+`.trim();
 }
 
 // Mental Wellbeing Booking Email Template
@@ -1334,4 +1410,80 @@ function generateGeneralPaymentEmail(details: any) {
         `,
         text: `Payment Successful! Amount: ${currency.toUpperCase()} ${amount}, Payment ID: ${paymentId}`
     };
+}
+
+// Try to read a start ISO string from different possible request body shapes
+function additionalDetailsStartFromBody(body: any): string | null {
+    if (!body) return null;
+    if (body.startDate) return body.startDate;
+    if (body.start_date) return body.start_date;
+    if (body.additionalDetails && (body.additionalDetails.start_date || body.additionalDetails.startDate)) {
+        return body.additionalDetails.start_date || body.additionalDetails.startDate;
+    }
+    return null;
+}
+
+// Generate a lightweight reminder email (used for both 24h and 1h reminders)
+function generateCourseReminderEmail({ userEmail, userName, courseName, startISO, whenLabel }: any) {
+    const startPretty = startISO ? new Date(startISO).toLocaleString() : 'Scheduled time';
+    return {
+        from: {
+            name: 'STEM for Society',
+            address: 'noreply@stemforsociety.com'
+        },
+        to: userEmail,
+        subject: `⏰ Reminder: ${courseName} starts ${whenLabel}`,
+        html: `
+            <div style="font-family:Segoe UI, sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <h2>Reminder — ${courseName}</h2>
+              <p>Hi ${userName || 'Student'},</p>
+              <p>This is a reminder that <strong>${courseName}</strong> is scheduled to start <strong>${whenLabel}</strong> at <strong>${startPretty}</strong>.</p>
+              <p>Please be ready and join the class on time.</p>
+              <p>— STEM for Society</p>
+            </div>
+        `,
+        text: `Reminder: ${courseName} starts ${whenLabel} at ${startPretty}`
+    };
+}
+
+// Schedule two reminders: 24 hours and 1 hour before the given ISO start time.
+// Uses in-process timers; for production consider persistent job queues (BullMQ, agenda, etc.).
+function scheduleCourseReminders({ userEmail, userName, courseName, startISO }: { userEmail: string; userName?: string; courseName: string; startISO: string; }) {
+    const start = new Date(startISO);
+    if (isNaN(start.getTime())) {
+        console.warn('Invalid startISO for scheduling reminders:', startISO);
+        return;
+    }
+
+    const now = Date.now();
+    const startTs = start.getTime();
+
+    const reminders = [
+        { whenLabel: 'in 24 hours', msBefore: 24 * 60 * 60 * 1000 },
+        { whenLabel: 'in 1 hour', msBefore: 60 * 60 * 1000 }
+    ];
+
+    for (const r of reminders) {
+        const sendAt = startTs - r.msBefore;
+        const delay = sendAt - now;
+        if (delay <= 0) {
+            // time passed — send immediately
+            const mail = generateCourseReminderEmail({ userEmail, userName, courseName, startISO, whenLabel: r.whenLabel });
+                transporter.sendMail(mail).then(() => console.log(`Sent immediate ${r.whenLabel} reminder to ${userEmail}`)).catch((err: any) => console.error('Reminder send error:', err));
+        } else if (delay > 0) {
+            // Protect against setTimeout limits (~24.8 days) and extremely long delays
+            const MAX_TIMEOUT = 0x7FFFFFFF; // ~24.8 days
+            if (delay > MAX_TIMEOUT) {
+                // If too far in future, schedule a shorter interim timer to re-evaluate later
+                // Here we schedule a timer for MAX_TIMEOUT and then recursively call scheduleCourseReminders again
+                setTimeout(() => scheduleCourseReminders({ userEmail, userName, courseName, startISO }), MAX_TIMEOUT);
+            } else {
+                setTimeout(() => {
+                    const mail = generateCourseReminderEmail({ userEmail, userName, courseName, startISO, whenLabel: r.whenLabel });
+                    transporter.sendMail(mail).then(() => console.log(`Sent ${r.whenLabel} reminder to ${userEmail}`)).catch((err: any) => console.error('Reminder send error:', err));
+                }, delay);
+                console.log(`Scheduled ${r.whenLabel} reminder for ${userEmail} (in ${Math.round(delay / 1000)}s)`);
+            }
+        }
+    }
 }
