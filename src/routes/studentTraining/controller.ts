@@ -164,7 +164,11 @@ export const getFinishingSchools: RequestHandler = async (
         },
       },
       where(fields, operators) {
-        return operators.isNotNull(fields.approvedBy);
+        return operators.and(
+          operators.eq(fields.courseType, "Finishing School"),
+          operators.isNotNull(fields.approvedBy)
+        )
+       
       },
       orderBy(fields, operators) {
         return operators.desc(fields.startDate);
@@ -177,6 +181,9 @@ export const getFinishingSchools: RequestHandler = async (
         endDate: true,
         description: true,
         location: true,
+        courseType: true,
+        whoIsItFor:true,
+        whatYouWillLearn:true,
         cost: true,
         type: true,
         createdAt: true,
