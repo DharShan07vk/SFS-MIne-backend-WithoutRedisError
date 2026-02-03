@@ -150,7 +150,6 @@ export const createTraining: RequestHandler = async (
     const courseCreationParsed = newCourseFormSchema.safeParse({
       ...rawData,
       cost: Number(rawData.cost),
-      lessons: rawData.lessons ? JSON.parse(rawData.lessons) : undefined,
       cover:
         !req.file || !req.file.buffer
           ? null
@@ -218,29 +217,32 @@ export const createTraining: RequestHandler = async (
           location: data.location || null,
           type: data.type,
           link: data.trainingLink || null,
+          courseType: data.course_type,
+          whoIsItFor: data.whoIsItFor,
+          whatYouWillLearn: data.whatYouWillLearn,
           coverImg: coverImageURL,
           category: data.category,
         })
         .returning();
 
-      if (data.type !== "OFFLINE" && data.lessons && data.lessons.length > 0) {
-        await tx.insert(trainingLessonTable).values(
-          data.lessons.map((lesson, index) => {
-            const currDate = new Date(data.startDate);
-            currDate.setDate(currDate.getDate() + index);
+      // if (data.type !== "OFFLINE" && data.lessons && data.lessons.length > 0) {
+      //   await tx.insert(trainingLessonTable).values(
+      //     data.lessons.map((lesson, index) => {
+      //       const currDate = new Date(data.startDate);
+      //       currDate.setDate(currDate.getDate() + index);
             
-            return {
-              type: lesson.type,
-              title: lesson.title,
-              content: lesson.type === "ONLINE" ? lesson.content : undefined,
-              video: lesson.type === "ONLINE" ? lesson.video : undefined,
-              location: lesson.type === "OFFLINE" ? lesson.location : undefined,
-              trainingId: training.id,
-              lastDate: currDate,
-            };
-          }),
-        );
-      }
+      //       return {
+      //         type: lesson.type,
+      //         title: lesson.title,
+      //         content: lesson.type === "ONLINE" ? lesson.content : undefined,
+      //         video: lesson.type === "ONLINE" ? lesson.video : undefined,
+      //         location: lesson.type === "OFFLINE" ? lesson.location : undefined,
+      //         trainingId: training.id,
+      //         lastDate: currDate,
+      //       };
+      //     }),
+      //   );
+      // }
     });
     
     res.json({ message: "Course module created successfully!" });
