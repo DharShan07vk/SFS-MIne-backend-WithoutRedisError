@@ -34,6 +34,7 @@ export const getStudents: RequestHandler = async (
         lastName: userTable.lastName,
         email: userTable.email,
         id: userTable.id,
+        mobile: userTable.mobile,
       })
       .from(trainingEnrolmentTable)
       .where(
@@ -51,7 +52,9 @@ export const getStudents: RequestHandler = async (
         userTable.lastName,
         userTable.email,
         userTable.id,
+        userTable.mobile,
       );
+      console.log("🚀 ~ getStudents ~ students:", students);
     res.json({ data: students });
   } catch (error) {
     console.log("🚀 ~ getStudents ~ error:", error);
