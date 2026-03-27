@@ -5,15 +5,20 @@ import { userOtp, userTable } from "../../db/schema/users";
 import { and, eq } from "drizzle-orm";
 const crypto = require('crypto');
 
+const email = process.env.EMAIL;
+const pass = process.env.APP_PASS;
+
+
 let transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false,
     auth: {
-        user: "randompurposeuse07@gmail.com",
-        pass: "zogc bjhp tqwx pfve",
+        user: email,
+        pass: pass, 
     },
 });
+
 
 export const sendOTP: RequestHandler = async (req: Request, res: Response) => {
     try {
