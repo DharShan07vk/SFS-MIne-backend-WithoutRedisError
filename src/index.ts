@@ -114,24 +114,8 @@ app.use("/testing", testRouter);
 // Catch-all route for debugging 404 errors
 app.use("*", (req: Request, res: Response) => {
   console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
-  console.log(`Headers:`, req.headers);
-  console.log(`Body:`, req.body);
-  res.status(404).json({
-    error: `Route ${req.method} ${req.originalUrl} not found`,
-    availableRoutes: [
-      "GET /",
-      "POST /auth/register",
-      "POST /auth/sign-in", 
-      "GET /auth/me",
-      "GET /trainings/*",
-      "POST /partner/auth/sign-in",
-      "POST /admin/auth/sign-in",
-      "GET /home/carousel",
-      "POST /enquiry",
-      "POST /payments/*"
-    ]
-  });
 });
+
 
 // Global error handler
 app.use((err: any, req: Request, res: Response, next: any) => {
@@ -196,4 +180,6 @@ app.use((err: any, req: Request, res: Response, next: any) => {
 
 app.listen(port, () => {
   console.log(`Server is firing at http://localhost:${port}`);
+  console.log('Email '+ process.env.EMAIL)
+  console.log('PASSWORD '+ process.env.APP_PASS)
 });
