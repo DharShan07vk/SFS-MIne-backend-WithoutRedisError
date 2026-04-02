@@ -1,6 +1,6 @@
 import { Request, RequestHandler, Response } from "express";
 import { db } from "../../db/connection";
-import { newCourseFormSchema } from "./validation";
+import { newCourseFormSchema, updateCourseFormSchema } from "./validation";
 import { createValidationError, slugify } from "../../utils/validation";
 import { trainingLessonTable, trainingTable } from "../../db/schema";
 import { INVALID_SESSION_MSG } from "../../utils/constants";
@@ -153,7 +153,7 @@ export const createTraining: RequestHandler = async (
       cover:
         !req.file || !req.file.buffer
           ? null
-          : new File([req.file!.buffer], req.file!.filename, {
+          : new File([new Uint8Array(req.file!.buffer)], req.file!.filename, {
               type: req.file!.mimetype,
             }),
     });
@@ -250,6 +250,175 @@ export const createTraining: RequestHandler = async (
     console.log("🚀 ~ createTraining ~ error:", error);
     res.status(500).json({
       error: "Server error in creating training course",
+    });
+  }
+};
+
+export const updateTraining: RequestHandler = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const partnerAuth = req.auth["PARTNER"];
+    if (!partnerAuth) {
+      res.status(401).json({
+        error: INVALID_SESSION_MSG,
+      });
+      return;
+    }
+
+    const { trainingId: trainingIdUnsafe } = req.params;
+    const trainingId = z.string().uuid().safeParse(trainingIdUnsafe);
+    if (!trainingId.success) {
+      res.status(400).json({
+        error: "Invalid training ID",
+      });
+      return;
+    }
+
+    const rawData = req.body;
+    const updateParsed = updateCourseFormSchema.safeParse({
+      ...rawData,
+      cost: rawData.cost ? Number(rawData.cost) : undefined,
+      cover:
+        !req.file || !req.file.buffer
+          ? null
+          : new File([new Uint8Array(req.file!.buffer)], req.file!.filename, {
+              type: req.file!.mimetype,
+            }),
+    });
+
+    if (!updateParsed.success) {
+      res.status(400).json({
+        errors: createValidationError(updateParsed),
+      });
+      return;
+    }
+
+    const existingTraining = await db.query.trainingTable.findFirst({
+      where(fields, operators) {
+        return operators.and(
+          operators.eq(fields.createdBy, partnerAuth.id),
+          operators.eq(fields.id, trainingId.data),
+        );
+      },
+    });
+
+    if (!existingTraining) {
+      res.status(404).json({
+        error: "Training not found or you don't have permission to edit it",
+      });
+      return;
+    }
+
+    const { data } = updateParsed;
+    let coverImageURL = existingTraining.coverImg;
+
+    if (data.cover) {
+      const { data: uploadResult, error } = await supabase.storage
+        .from("s4s-media")
+        .upload(`public/photos/${slugify(data.title || existingTraining.title)}.jpg`, data.cover, {
+          upsert: true,
+        });
+
+      if (error) {
+        console.log("🚀 ~ updateTraining ~ supabase upload error:", error);
+        res.status(500).json({
+          error: "Server error in uploading profile file!",
+        });
+        return;
+      }
+      coverImageURL = SUPABASE_PROJECT_URL + "/storage/v1/object/public/" + uploadResult.fullPath;
+    }
+
+    await db
+      .update(trainingTable)
+      .set({
+        title: data.title,
+        cost: data.cost ? data.cost.toFixed(2) : undefined,
+        description: data.description,
+        endDate: data.endDate,
+        startDate: data.startDate,
+        location: data.location,
+        type: data.type,
+        link: data.trainingLink,
+        courseType: data.course_type,
+        whoIsItFor: data.whoIsItFor,
+        whatYouWillLearn: data.whatYouWillLearn,
+        coverImg: coverImageURL,
+        category: data.category,
+        updatedAt: new Date(),
+      })
+      .where(eq(trainingTable.id, trainingId.data));
+
+    res.json({ message: "Training updated successfully!" });
+  } catch (error) {
+    console.log("🚀 ~ updateTraining ~ error:", error);
+    res.status(500).json({
+      error: "Server error in updating training",
+    });
+  }
+};
+
+export const deleteTraining: RequestHandler = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const partnerAuth = req.auth["PARTNER"];
+    if (!partnerAuth) {
+      res.status(401).json({
+        error: INVALID_SESSION_MSG,
+      });
+      return;
+    }
+
+    const { trainingId: trainingIdUnsafe } = req.params;
+    const trainingId = z.string().uuid().safeParse(trainingIdUnsafe);
+    if (!trainingId.success) {
+      res.status(400).json({
+        error: "Invalid training ID",
+      });
+      return;
+    }
+
+    const existingTraining = await db.query.trainingTable.findFirst({
+      where(fields, operators) {
+        return operators.and(
+          operators.eq(fields.createdBy, partnerAuth.id),
+          operators.eq(fields.id, trainingId.data),
+        );
+      },
+    });
+
+    if (!existingTraining) {
+      res.status(404).json({
+        error: "Training not found or you don't have permission to delete it",
+      });
+      return;
+    }
+
+    // Check for enrolments
+    const enrolments = await db.query.trainingEnrolmentTable.findFirst({
+      where(fields, operators) {
+        return operators.eq(fields.trainingId, trainingId.data);
+      },
+    });
+
+    if (enrolments) {
+      res.status(400).json({
+        error: "Cannot delete training with existing enrolments. Please contact admin for archiving.",
+      });
+      return;
+    }
+
+    await db.delete(trainingTable).where(eq(trainingTable.id, trainingId.data));
+
+    res.json({ message: "Training deleted successfully!" });
+  } catch (error) {
+    console.log("🚀 ~ deleteTraining ~ error:", error);
+    res.status(500).json({
+      error: "Server error in deleting training",
     });
   }
 };

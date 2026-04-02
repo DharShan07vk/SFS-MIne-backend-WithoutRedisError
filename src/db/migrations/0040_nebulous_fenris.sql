@@ -1,0 +1,1 @@
+ALTER TABLE "instructor" ADD COLUMN "has_gst" boolean DEFAULT true;

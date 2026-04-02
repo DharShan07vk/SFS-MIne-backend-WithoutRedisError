@@ -30,8 +30,6 @@ export const transactionStatusEnum = pgEnum("transaction_status", [
   "failed",
 ]);
 
-
-
 export const trainingTypeEnum = pgEnum("training_type", [
   "ONLINE",
   "OFFLINE",
@@ -53,7 +51,7 @@ export const trainingTable = pgTable("training", {
   courseType: varchar({ length: 100 }),
   type: trainingTypeEnum("type"),
   color: varchar("color", { length: 30 }),
-  category: varchar({ length: 200 }), 
+  category: varchar({ length: 200 }),
   whoIsItFor: text("who_is_it_for").array().notNull().default([]),
   whatYouWillLearn: text("what_you_will_learn").array().notNull().default([]),
   createdBy: uuid("created_by").references(() => instructorTable.id),

@@ -2,10 +2,12 @@ import { Router, urlencoded } from "express";
 import {
   createTraining,
   deleteAsset,
+  deleteTraining,
   generateCertificates,
   generateUploadSignature,
   getTraining,
   getTrainings,
+  updateTraining,
 } from "./controller";
 import { requireAuthToken } from "../../middleware";
 import multer from "multer";
@@ -32,5 +34,16 @@ trainingRouter.post(
   generateUploadSignature,
 );
 trainingRouter.post("/delete-asset", requireAuthToken("PARTNER"), deleteAsset);
+trainingRouter.patch(
+  "/:trainingId",
+  multer().single("cover"),
+  requireAuthToken("PARTNER"),
+  updateTraining,
+);
+trainingRouter.delete(
+  "/:trainingId",
+  requireAuthToken("PARTNER"),
+  deleteTraining,
+);
 
 export default trainingRouter;

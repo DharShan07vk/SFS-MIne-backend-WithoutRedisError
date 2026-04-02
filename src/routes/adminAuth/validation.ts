@@ -3,13 +3,13 @@ import { z } from "zod";
 export const registerUserSchema = z.object({
   companyName: z
     .string()
-    .refine((value) => /^[a-zA-Z\s]{2,100}$/g.test(value), {
+    .refine((value) => /^[a-zA-Z\s]{3,100}$/g.test(value), {
       message:
         "Company name should not contain special characters and must be within 100 letters",
     }),
   email: z.string().email("Invalid email address"),
   cinOrGst: z.string().min(10, "CIN / GST Number must be provided"),
-  owner: z.string().refine((value) => /^[a-zA-Z\s]{2,100}$/g.test(value), {
+  owner: z.string().refine((value) => /^[a-zA-Z\s]{3,100}$/g.test(value), {
     message:
       "Contact name should not contain special characters and must be within 100 letters",
   }),

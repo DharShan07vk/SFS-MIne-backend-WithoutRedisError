@@ -4,7 +4,7 @@ export const registerUserSchema = z
   .object({
     firstName: z
       .string({ required_error: "First name is required!" })
-      .min(1, "Name is too short"),
+      .min(3, "First name must be at least 3 characters"),
     email: z.string({ required_error: "Email is required!" }).email(),
     mobile: z
       .string({ required_error: "Mobile is required!" })
