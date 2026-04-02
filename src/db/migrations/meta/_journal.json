@@ -281,6 +281,13 @@
       "when": 1770027905208,
       "tag": "0039_graceful_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1775084655581,
+      "tag": "0040_nebulous_fenris",
+      "breakpoints": true
     }
   ]
 }

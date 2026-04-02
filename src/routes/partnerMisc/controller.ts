@@ -634,7 +634,10 @@ export const savePartnerProfile: RequestHandler = async (
         updateData.institutionName = profileDataParsed.data.institutionName;
       }
       if ('gst' in profileDataParsed.data) {
-        updateData.gst = profileDataParsed.data.gst;
+        updateData.gst = profileDataParsed.data.hasGst === false ? null : (profileDataParsed.data.gst || null);
+      }
+      if ('hasGst' in profileDataParsed.data) {
+        updateData.hasGst = profileDataParsed.data.hasGst;
       }
       if ('topics' in profileDataParsed.data) {
         updateData.topics = profileDataParsed.data.topics;

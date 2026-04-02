@@ -1,4 +1,5 @@
 import {
+  boolean,
   char,
   integer,
   pgTable,
@@ -48,6 +49,7 @@ export const instructorTable = pgTable("instructor", {
   addressId: integer("address_id").references(() => addressTable.id),
   approvedBy: uuid("approved_by").references(() => adminTable.id),
   gst: varchar("gst", { length: 30 }),
+  hasGst: boolean("has_gst").default(true),
   logo: varchar("logo"),
   digitalSign : varchar("digitalSign"),
   ...timestamps(),

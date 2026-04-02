@@ -4,7 +4,7 @@ import { z } from "zod";
 export const IndividualOrInstitutionnSchema = z.object({
   name : z
   .string({ required_error: "Name is required!" })
-  .min(5, "Name is too short")
+  .min(3, "Name must be at least 3 characters")
   .max(100, "Name is too long"),
 
   mobile : z
@@ -26,11 +26,11 @@ export const IndividualOrInstitutionnSchema = z.object({
 export const institutionPlanSchema = z.object({
   schoolName: z
     .string({ required_error: "School name is required!" })
-    .min(5, "School name is too short")
+    .min(3, "School name is too short")
     .max(100, "School name is too long"),
   contactName: z
     .string({ required_error: "Name is required!" })
-    .min(5, "Name is too short")
+    .min(3, "Name is too short")
     .max(100, "Name is too long"),
   contactMobile: z
     .string({ required_error: "Mobile is required!" })
@@ -56,7 +56,7 @@ export const institutionPlanSchema = z.object({
 export const psychologyTrainingSchema = z.object({
   firstName: z
     .string({ required_error: "First name is required!" })
-    .min(2, "First name is too short")
+    .min(3, "First name must be at least 3 characters")
     .max(100, "First name is too long"),
   lastName: z
     .string()
@@ -93,7 +93,7 @@ export const careerCounsellingSchema = z
   .object({
     firstName: z
       .string({ required_error: "First name is required!" })
-      .min(2, "First name is too short")
+      .min(3, "First name must be at least 3 characters")
       .max(100, "First name is too long"),
     lastName: z
       .string()
@@ -146,7 +146,7 @@ export const careerCounsellingSchema = z
 export const caRegistrationSchema = z.object({
   firstName: z
     .string({ required_error: "First name is required!" })
-    .min(2, "First name is too short")
+    .min(3, "First name must be at least 3 characters")
     .max(100, "First name is too long"),
   lastName: z
     .string()

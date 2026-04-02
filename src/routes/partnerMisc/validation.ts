@@ -5,7 +5,7 @@ export const accountSchema = z.union([
     bank_account: z.object({
       ifsc: z.string().min(1),
       bank_name: z.string().min(1),
-      name: z.string().min(1),
+      name: z.string().min(3, "Account holder name must be at least 3 characters"),
       account_number: z.string().min(1),
     }),
   }),
@@ -34,13 +34,13 @@ const fileValidation = z
 
 export const partnerProfileSchema = z.object({
   email: z.string().email("Invalid email address"),
-  firstName: z.string().refine((value) => /^[a-zA-Z\s]{2,100}$/g.test(value), {
+  firstName: z.string().refine((value) => /^[a-zA-Z\s]{3,100}$/g.test(value), {
     message:
       "Contact name should not contain special characters and must be within 100 letters",
   }),
   lastName: z
     .string()
-    .refine((value) => /^[a-zA-Z\s]{2,100}$/g.test(value), {
+    .refine((value) => /^[a-zA-Z\s]{3,100}$/g.test(value), {
       message:
         "Contact name should not contain special characters and must be within 100 letters",
     })
@@ -63,6 +63,25 @@ export const partnerProfileSchema = z.object({
   digitalSign: fileValidation,
   // Additional fields that might be in the form
   institutionName: z.string().max(100).optional(),
-  gst: z.string().regex(/^[0-9A-Z]{15}$/, "GST must be 15 alphanumeric characters").optional(),
+  gst: z
+    .string()
+    .regex(
+      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
+      "Invalid GST format (Example: 22AAAAA0000A1Z5)",
+    )
+    .optional()
+    .or(z.literal("")),
+  hasGst: z.preprocess((val) => val === "true" || val === true, z.boolean()).optional(),
   topics: z.array(z.string()).max(10, "Maximum 10 topics allowed").optional(),
-});
+}).refine(
+  (data) => {
+    if (data.hasGst === true && (!data.gst || data.gst.trim() === "")) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "GST number is required when 'Has GST' is selected",
+    path: ["gst"],
+  },
+);
