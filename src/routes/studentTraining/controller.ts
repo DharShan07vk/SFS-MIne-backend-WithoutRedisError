@@ -99,7 +99,8 @@ export const getskillDevelopments: RequestHandler = async (
       where(fields, operators) {
         return operators.and(
           operators.eq(fields.courseType, "Skill Development"),
-          operators.isNotNull(fields.approvedBy)
+          operators.isNotNull(fields.approvedBy),
+          operators.gte(fields.endDate, new Date()) 
         );
       },
       orderBy(fields, operators) {
