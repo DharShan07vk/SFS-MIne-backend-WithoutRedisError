@@ -2,7 +2,7 @@ import { Request, RequestHandler, Response } from "express";
 import { db } from "../../db/connection";
 import { z } from "zod";
 import { createBlogSchema } from "./validation";
-import { createValidationError, slugify } from "../../utils/validation";
+import { createValidationError} from "../../utils/validation";
 import { blogAuthorTable, blogTable } from "../../db/schema";
 import { nanoid } from "nanoid";
 import { supabase, SUPABASE_PROJECT_URL } from "../../supabase";
@@ -114,8 +114,19 @@ export const createBlog: RequestHandler = async (
       return;
     }
 
+    const generateSlug = (title: string) => {
+      const base = title
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+
+      const unique = Math.random().toString(36).substring(2, 10);
+      return `${base}-${unique}`;
+    };
+
     let blogCoverImageURL;
-    const blogSlug = slugify(blogEntry.data.title) + "-" + nanoid(10);
+    const blogSlug = generateSlug(blogEntry.data.title);
     const { data, error } = await supabase.storage
       .from("s4s-media")
       .upload(
@@ -152,7 +163,7 @@ export const createBlog: RequestHandler = async (
 
       await tx.insert(blogTable).values({
         content: blogEntry.data.content,
-        slug: slugify(blogEntry.data.title) + nanoid(10),
+        slug: blogSlug,
         title: blogEntry.data.title,
         author: existingBlogAuthor.id,
         coverImage: blogCoverImageURL,
