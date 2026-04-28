@@ -288,6 +288,13 @@
       "when": 1775084655581,
       "tag": "0040_nebulous_fenris",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1777405718377,
+      "tag": "0041_uneven_lester",
+      "breakpoints": true
     }
   ]
 }
