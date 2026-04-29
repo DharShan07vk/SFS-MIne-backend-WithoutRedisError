@@ -8,6 +8,7 @@
     "db:migrate": "npx drizzle-kit migrate",
     "studio": "npx drizzle-kit studio",
     "db:test": "npx tsx src/db/queries/test.ts",
+    "db:seed-demo-users": "npx tsx src/db/queries/seed-demo-users.ts",
     "dev": "ts-node-dev --respawn src/index.ts ",
     "start": "node dist/src/index.js"
   },
