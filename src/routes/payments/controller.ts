@@ -314,7 +314,30 @@ export const verifyPayment: RequestHandler = async (
         return;
       }
 
-      if (rzpySuccess.data.payload.payment.entity.status === "failed") {
+      const paymentEntity = rzpySuccess.data.payload.payment.entity;
+      let paymentStatus = paymentEntity.status;
+
+      if (paymentStatus === "authorized") {
+        try {
+          const capture = paymentEntity.currency
+            ? await razorpay.payments.capture(
+                paymentEntity.id,
+                paymentEntity.amount,
+                paymentEntity.currency,
+              )
+            : await razorpay.payments.capture(
+                paymentEntity.id,
+                paymentEntity.amount,
+              );
+
+          paymentStatus = capture.status;
+        } catch (captureError) {
+          console.log("[WH]: Payment capture failed:", captureError);
+          paymentStatus = "failed";
+        }
+      }
+
+      if (paymentStatus === "failed") {
         errorMessage = `Payment failed: ${rzpySuccess.data.payload.payment.entity.error_description} - ${rzpySuccess.data.payload.payment.entity.error_description}`;
 
         if (referenceId.includes("INST_")) {

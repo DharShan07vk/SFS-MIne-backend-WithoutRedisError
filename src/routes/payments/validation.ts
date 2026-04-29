@@ -35,9 +35,10 @@ export const partialRzpyWebhookSchema = z.object({
       entity: z.object({
         amount: z.number(),
         amount_refunded: z.number(),
+        currency: z.string().optional(),
         id: z.string(),
         order_id: z.string(),
-        status: z.enum(["captured", "failed"]),
+        status: z.enum(["authorized", "captured", "failed"]),
         error_code: z.string().nullable(),
         error_description: z.string().nullable(),
         error_reason: z.string().nullable(),
