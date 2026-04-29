@@ -315,20 +315,17 @@ export const verifyPayment: RequestHandler = async (
       }
 
       const paymentEntity = rzpySuccess.data.payload.payment.entity;
-      let paymentStatus = paymentEntity.status;
+      type PaymentStatus = typeof paymentEntity.status | "created" | "refunded";
+      let paymentStatus: PaymentStatus = paymentEntity.status;
 
       if (paymentStatus === "authorized") {
         try {
-          const capture = paymentEntity.currency
-            ? await razorpay.payments.capture(
-                paymentEntity.id,
-                paymentEntity.amount,
-                paymentEntity.currency,
-              )
-            : await razorpay.payments.capture(
-                paymentEntity.id,
-                paymentEntity.amount,
-              );
+          const captureCurrency = paymentEntity.currency ?? "INR";
+          const capture = await razorpay.payments.capture(
+            paymentEntity.id,
+            paymentEntity.amount,
+            captureCurrency,
+          );
 
           paymentStatus = capture.status;
         } catch (captureError) {
