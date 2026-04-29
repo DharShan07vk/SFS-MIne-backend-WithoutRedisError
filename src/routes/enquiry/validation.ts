@@ -1,6 +1,8 @@
 import { or } from "drizzle-orm";
 import { z } from "zod";
 
+const urlPattern = /^(https?:\/\/)?(www\.)?linkedin\.com\/(in|company)\/[a-z0-9_%\-]{3,100}\/?(\?.*)?$/i;
+
 export const IndividualOrInstitutionnSchema = z.object({
   name : z
   .string({ required_error: "Name is required!" })
@@ -170,8 +172,6 @@ export const caRegistrationSchema = z.object({
   dob: z.coerce.date().nullish(),
   linkedin: z
     .string()
-    .url("Invalid URl")
-    .refine((url) => url.startsWith("https://linkedin"), {
-      message: "Only valid linkedin links are allowed",
-    }),
+    .trim()
+    .regex(urlPattern, "Only valid LinkedIn links are allowed"),
 });
