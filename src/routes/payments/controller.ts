@@ -314,6 +314,19 @@ export const verifyPayment: RequestHandler = async (
         return;
       }
 
+      // CRITICAL FIX: If transaction is already "success" in DB (set by verifyClientPayment
+      // before this webhook arrived), do NOT overwrite it with failed.
+      // This is the root cause of live GPay payments showing as failed.
+      const existingTxn = await db.query.transactionTable.findFirst({
+        where(fields, ops) {
+          return ops.eq(fields.orderId, rzpyOrderId);
+        },
+      });
+      if (existingTxn?.status === "success") {
+        console.log("[WH]: Transaction already success in DB — skipping webhook overwrite");
+        return;
+      }
+
       const paymentEntity = rzpySuccess.data.payload.payment.entity;
       type PaymentStatus = typeof paymentEntity.status | "created" | "refunded";
       let paymentStatus: PaymentStatus = paymentEntity.status;
@@ -328,9 +341,26 @@ export const verifyPayment: RequestHandler = async (
           );
 
           paymentStatus = capture.status;
-        } catch (captureError) {
+        } catch (captureError: any) {
           console.log("[WH]: Payment capture failed:", captureError);
-          paymentStatus = "failed";
+          // In live mode, Razorpay auto-captures GPay payments.
+          // If webhook fires after auto-capture, manual capture throws "already captured".
+          // This should be treated as SUCCESS, not failure — money was actually received.
+          const errMsg = String(
+            captureError?.error?.description ||
+            captureError?.message ||
+            captureError
+          ).toLowerCase();
+          const alreadyCaptured =
+            errMsg.includes("already") ||
+            errMsg.includes("captured") ||
+            captureError?.statusCode === 400;
+          if (alreadyCaptured) {
+            console.log("[WH]: Payment already captured (auto-capture), treating as success");
+            paymentStatus = "captured";
+          } else {
+            paymentStatus = "failed";
+          }
         }
       }
 
