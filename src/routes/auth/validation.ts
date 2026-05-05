@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+const PASSWORD_RULE_MESSAGE =
+  "Password must be at least 8 characters long and contain both letters and numbers";
+
 export const registerUserSchema = z
   .object({
     firstName: z
@@ -9,7 +14,9 @@ export const registerUserSchema = z
     mobile: z
       .string({ required_error: "Mobile is required!" })
       .regex(/^[6789]\d{9}$/, "Mobile number is invalid"),
-    password: z.string({ required_error: "Password is required!" }).min(8),
+    password: z
+      .string({ required_error: "Password is required!" })
+      .regex(PASSWORD_REGEX, PASSWORD_RULE_MESSAGE),
     confirmPassword: z
       .string({ required_error: "Please confirm same password!" })
       .min(8),
@@ -20,12 +27,7 @@ export const registerUserSchema = z
 
 export const signInUserSchema = z.object({
   email: z.string().email("Invalid email"),
-  password: z
-    .string()
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      "Password must be at least 8 characters long and contain both letters and numbers",
-    ),
+  password: z.string().regex(PASSWORD_REGEX, PASSWORD_RULE_MESSAGE),
 });
 
 export const getUserInfoSchema = z
@@ -37,6 +39,6 @@ export const resetPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
   newPassword: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(100, "Password too long"),
+    .max(100, "Password too long")
+    .regex(PASSWORD_REGEX, PASSWORD_RULE_MESSAGE),
 });
