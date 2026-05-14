@@ -800,5 +800,3 @@ export const verifyClientPayment: RequestHandler = async (
 //   }
 // };
 
-// ...rest of existing code...
-
