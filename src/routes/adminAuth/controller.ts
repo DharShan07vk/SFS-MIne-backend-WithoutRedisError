@@ -3,6 +3,7 @@ import { db } from "../../db/connection";
 import { JWT_SECRET_AD } from "../../middleware";
 import {
   ADMIN_AUTH_COOKIE_NAME,
+  AUTH_COOKIE_MAX_AGE_MS,
   INVALID_SESSION_MSG,
 } from "../../utils/constants";
 import { signJWT } from "../../utils/jwt";
@@ -88,7 +89,7 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
     });
     if (!user) {
       res.status(404).json({
-        error: "Invalid credentials",
+        error: "Please sign up first",
       });
       return;
     }
@@ -115,6 +116,8 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
     res.cookie(ADMIN_AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       secure: true,
+      maxAge: AUTH_COOKIE_MAX_AGE_MS,
+      sameSite: "lax",
     });
     res.json({
       data: {
@@ -143,7 +146,7 @@ export const getUserInfo: RequestHandler = async (
       return;
     }
 
-    const userInfo = await db.query.userTable.findFirst({
+    const userInfo = await db.query.adminTable.findFirst({
       where(fields, operators) {
         return operators.eq(fields.id, adminAuth.id);
       },

@@ -1,10 +1,11 @@
 import { jwtVerify, SignJWT } from "jose";
+import { AUTH_TOKEN_EXPIRES_IN } from "./constants";
 import { AuthCookieType } from "./validation";
 
 export async function signJWT(
   payload: AuthCookieType,
   secret: string,
-  expiresIn: string = "6h",
+  expiresIn: string = AUTH_TOKEN_EXPIRES_IN,
 ): Promise<string> {
   const encoder = new TextEncoder();
   const jwt = await new SignJWT(payload)

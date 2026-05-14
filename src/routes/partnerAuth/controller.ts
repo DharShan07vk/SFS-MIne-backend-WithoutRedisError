@@ -9,8 +9,9 @@ import {
 } from "../../db/schema";
 import { JWT_SECRET_PT, JWT_SECRET_STU } from "../../middleware";
 import {
+  AUTH_COOKIE_MAX_AGE_MS,
   INVALID_SESSION_MSG,
-  STUDENT_AUTH_COOKIE_NAME,
+  PARTNER_AUTH_COOKIE_NAME,
 } from "../../utils/constants";
 import { signJWT } from "../../utils/jwt";
 import { generateHashPassword, verifyPassword } from "../../utils/password";
@@ -236,7 +237,7 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
     });
     if (!user) {
       res.status(404).json({
-        error: "Invalid credentials",
+        error: "Please sign up first",
       });
       return;
     }
@@ -263,9 +264,11 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
       digitalSign: user.digitalSign,
     };
     const token = await signJWT(userAuth, JWT_SECRET_PT!);
-    res.cookie(STUDENT_AUTH_COOKIE_NAME, token, {
+    res.cookie(PARTNER_AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       secure: true,
+      maxAge: AUTH_COOKIE_MAX_AGE_MS,
+      sameSite: "lax",
     });
     res.json({
       data: {
@@ -286,17 +289,17 @@ export const getUserInfo: RequestHandler = async (
   res: Response,
 ) => {
   try {
-    const studentAuth = req.auth["STUDENT"];
-    if (!studentAuth) {
+    const partnerAuth = req.auth["PARTNER"];
+    if (!partnerAuth) {
       res.status(401).json({
         error: INVALID_SESSION_MSG,
       });
       return;
     }
 
-    const userInfo = await db.query.userTable.findFirst({
+    const userInfo = await db.query.instructorTable.findFirst({
       where(fields, operators) {
-        return operators.eq(fields.id, studentAuth.id);
+        return operators.eq(fields.id, partnerAuth.id);
       },
       columns: {
         hash: false,
@@ -304,7 +307,7 @@ export const getUserInfo: RequestHandler = async (
         updatedAt: false,
       },
     });
-    res.json({ ...userInfo, role: "STUDENT" });
+    res.json({ ...userInfo, role: "PARTNER" });
   } catch (error) {
     console.log("🚀 ~ getUserInfo ~ error:", error);
     res.status(500).json({

@@ -180,6 +180,5 @@ app.use((err: any, req: Request, res: Response, next: any) => {
 
 app.listen(port, () => {
   console.log(`Server is firing at http://localhost:${port}`);
-  console.log('Email '+ process.env.EMAIL)
-  console.log('PASSWORD '+ process.env.APP_PASS)
+
 });

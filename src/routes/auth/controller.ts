@@ -13,6 +13,7 @@ import { DatabaseError } from "pg";
 import { signJWT } from "../../utils/jwt";
 import { JWT_SECRET_STU } from "../../middleware";
 import {
+  AUTH_COOKIE_MAX_AGE_MS,
   INVALID_SESSION_MSG,
   STUDENT_AUTH_COOKIE_NAME,
 } from "../../utils/constants";
@@ -82,7 +83,7 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
     if (!user) {
       console.log(`User not found: ${signInUserValidation.data.email}`);
       res.status(404).json({
-        error: "Invalid credentials",
+        error: "User not Found! Please sign up first",
       });
       return;
     }
@@ -107,11 +108,10 @@ export const signIn: RequestHandler = async (req: Request, res: Response) => {
       createdAt: user.createdAt,
     };
     const token = await signJWT(userAuth, JWT_SECRET_STU!);
-    const _30minsFromNow = new Date(new Date().getTime() + 30 * 60000);
     res.cookie(STUDENT_AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      expires: _30minsFromNow,
+      maxAge: AUTH_COOKIE_MAX_AGE_MS,
       sameSite: "lax",
     });
     console.log(`Successful sign-in for: ${signInUserValidation.data.email}`);

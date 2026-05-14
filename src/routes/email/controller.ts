@@ -3,7 +3,7 @@ import { db } from "../../db/connection";
 const nodemailer = require("nodemailer");
 import { userOtp, userTable } from "../../db/schema/users";
 import { and, eq } from "drizzle-orm";
-const crypto = require('crypto');
+const { randomInt } = require("crypto");
 
 const email = process.env.EMAIL;
 const pass = process.env.APP_PASS;
@@ -28,7 +28,7 @@ export const sendOTP: RequestHandler = async (req: Request, res: Response) => {
             return;
         }
         
-        const otp = Math.floor(100000 + Math.random() * 900000); // Generate a 6-digit OTP
+        const otp = randomInt(100000, 1000000);
         const currentTime = Math.floor(Date.now() / 1000);
         const expirationTime = currentTime + 600; // OTP valid for 10 minutes
         
@@ -106,7 +106,7 @@ export const sendOTPReset: RequestHandler = async (req: Request, res: Response) 
             return;
         }
         
-        const otp = Math.floor(100000 + Math.random() * 900000); // Generate a 6-digit OTP
+        const otp = randomInt(100000, 1000000);
         const currentTime = Math.floor(Date.now() / 1000);
         const expirationTime = currentTime + 600; // OTP valid for 10 minutes
         
@@ -176,6 +176,18 @@ function maskEmail(email: string): string {
       ? `${username.charAt(0)}${'*'.repeat(username.length - 2)}${username.charAt(username.length - 1)}`
       : `${username.charAt(0)}*`;
     return `${maskedUsername}@${domain}`;
+}
+
+function escapeHtml(value: unknown): string {
+    if (value === null || value === undefined) return "";
+    const map: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+    };
+    return String(value).replace(/[&<>"']/g, (char) => map[char]);
 }
 
 // Template for Institution Registration OTP
@@ -298,9 +310,9 @@ function generateInstitutionRegistrationOTPTemplate(otp: number, email?: string,
           ${email ? `
           <div class="info-section">
             <h4><span class="icon">📋</span>Registration Details:</h4>
-            <div class="info-item"><strong>Institution Name:</strong> ${institutionName || 'To be provided'}</div>
-            <div class="info-item"><strong>Contact Number:</strong> ${phone || 'To be provided'}</div>
-            <div class="info-item"><strong>Registration Email:</strong> ${maskEmail(email)}</div>
+            <div class="info-item"><strong>Institution Name:</strong> ${escapeHtml(institutionName || 'To be provided')}</div>
+            <div class="info-item"><strong>Contact Number:</strong> ${escapeHtml(phone || 'To be provided')}</div>
+            <div class="info-item"><strong>Registration Email:</strong> ${escapeHtml(maskEmail(email))}</div>
             <div class="info-item"><strong>Registration Date:</strong> ${new Date().toLocaleDateString()}</div>
           </div>
           ` : ''}
@@ -447,7 +459,7 @@ function generatePasswordResetOTPTemplate(otp: number, email: string): string {
           </div>
 
           <h2> Password Reset Request</h2>
-          <p>We received a request to reset the password for your STEM for Society account associated with <strong>${maskEmail(email)}</strong>.</p>
+          <p>We received a request to reset the password for your STEM for Society account associated with <strong>${escapeHtml(maskEmail(email))}</strong>.</p>
           
           <p>To proceed with resetting your password, please use the verification code below:</p>
 
@@ -459,7 +471,7 @@ function generatePasswordResetOTPTemplate(otp: number, email: string): string {
 
           <div class="info-section">
             <h4><span class="icon"></span>Reset Details:</h4>
-            <div class="info-item"><strong>Account Email:</strong> ${maskEmail(email)}</div>
+            <div class="info-item"><strong>Account Email:</strong> ${escapeHtml(maskEmail(email))}</div>
             <div class="info-item"><strong>Request Time:</strong> ${new Date().toLocaleString()}</div>
           </div>
 
@@ -887,32 +899,32 @@ function generateCourseRegistrationEmail(details: any) {
 
                     <div class="success-badge">
                         <h2 style="margin: 0; font-size: 24px;">🎉 Registration Successful!</h2>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Welcome to ${courseName}</p>
+                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Welcome to ${escapeHtml(courseName)}</p>
                     </div>
 
-                    <p>Dear ${userName || 'Student'},</p>
-                    <p>Congratulations! Your registration for <strong>${courseName}</strong> has been confirmed. We're excited to have you join our learning community!</p>
+                    <p>Dear ${escapeHtml(userName || 'Student')},</p>
+                    <p>Congratulations! Your registration for <strong>${escapeHtml(courseName)}</strong> has been confirmed. We're excited to have you join our learning community!</p>
 
                     <div class="course-details">
                         <h4>📚 Course Details:</h4>
-                        <p><strong>Course Name:</strong> ${courseName}</p>
-                        <p><strong>Duration:</strong> ${courseDuration}</p>
-                        <p><strong>Start Date:</strong> ${startDate}</p>
+                        <p><strong>Course Name:</strong> ${escapeHtml(courseName)}</p>
+                        <p><strong>Duration:</strong> ${escapeHtml(courseDuration)}</p>
+                        <p><strong>Start Date:</strong> ${escapeHtml(startDate)}</p>
                         <p><strong>Registration Date:</strong> ${transactionDate.toLocaleDateString()}</p>
                     </div>
 
                     ${meetLink ? `
                     <div style="margin: 10px 0;">
                         <h4>🔗 Join Live Class</h4>
-                        <p><a href="${meetLink}">Click here to join the meeting</a></p>
+                        <p><a href="${escapeHtml(meetLink)}">Click here to join the meeting</a></p>
                         <p>We've attached a calendar invite (.ics) to this email — download and add it to your calendar.</p>
                     </div>
                     ` : ''}
 
                     <div class="payment-details">
                         <h4>💳 Payment Details:</h4>
-                        <p><strong>Amount Paid:</strong> ${currency.toUpperCase()} ${amount}</p>
-                        <p><strong>Payment ID:</strong> ${paymentId}</p>
+                        <p><strong>Amount Paid:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
+                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
                         <p><strong>Transaction Date:</strong> ${transactionDate.toLocaleString()}</p>
                         <p><strong>Status:</strong> <span style="color: #10b981; font-weight: bold;">✅ Successful</span></p>
                     </div>
@@ -1074,16 +1086,16 @@ function generateMentalWellbeingEmail(details: any) {
                         <p style="margin: 10px 0 0 0; opacity: 0.9;">Your mental wellness journey begins here</p>
                     </div>
 
-                    <p>Dear ${userName || 'Friend'},</p>
+                    <p>Dear ${escapeHtml(userName || 'Friend')},</p>
                     <p>Thank you for taking this important step towards your mental wellbeing. Your session has been successfully booked, and we're here to support you on this journey.</p>
 
                     <div class="session-details">
                         <h4>🧠 Session Details:</h4>
-                        <p><strong>Session Type:</strong> ${sessionType}</p>
-                        <p><strong>Session Date:</strong> ${sessionDate}</p>
+                        <p><strong>Session Type:</strong> ${escapeHtml(sessionType)}</p>
+                        <p><strong>Session Date:</strong> ${escapeHtml(sessionDate)}</p>
                         <p><strong>Booking Date:</strong> ${transactionDate.toLocaleDateString()}</p>
-                        <p><strong>Amount Paid:</strong> ${currency.toUpperCase()} ${amount}</p>
-                        <p><strong>Payment ID:</strong> ${paymentId}</p>
+                        <p><strong>Amount Paid:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
+                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
                     </div>
 
                     <div class="wellness-tips">
@@ -1191,16 +1203,16 @@ function generateCareerCounselingEmail(details: any) {
                         <p style="margin: 10px 0 0 0; opacity: 0.9;">Your career transformation starts now</p>
                     </div>
 
-                    <p>Dear ${userName || 'Future Leader'},</p>
+                    <p>Dear ${escapeHtml(userName || 'Future Leader')},</p>
                     <p>Congratulations on taking this important step towards your career growth! Your career counseling session has been successfully booked.</p>
 
                     <div class="session-details">
                         <h4>💼 Session Details:</h4>
-                        <p><strong>Counseling Type:</strong> ${counselingType}</p>
-                        <p><strong>Session Date:</strong> ${sessionDate}</p>
+                        <p><strong>Counseling Type:</strong> ${escapeHtml(counselingType)}</p>
+                        <p><strong>Session Date:</strong> ${escapeHtml(sessionDate)}</p>
                         <p><strong>Booking Date:</strong> ${transactionDate.toLocaleDateString()}</p>
-                        <p><strong>Investment:</strong> ${currency.toUpperCase()} ${amount}</p>
-                        <p><strong>Payment ID:</strong> ${paymentId}</p>
+                        <p><strong>Investment:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
+                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
                     </div>
 
                     <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -1303,17 +1315,17 @@ function generateInstitutionBookingEmail(details: any) {
                         <p style="margin: 10px 0 0 0; opacity: 0.9;">Welcome to the STEM for Society family</p>
                     </div>
 
-                    <p>Dear ${userName || 'Institution Representative'},</p>
+                    <p>Dear ${escapeHtml(userName || 'Institution Representative')},</p>
                     <p>Welcome to STEM for Society! We're thrilled to confirm your institution's partnership with us. Together, we'll create amazing learning opportunities for students.</p>
 
                     <div class="partnership-details">
                         <h4>🤝 Partnership Details:</h4>
-                        <p><strong>Institution:</strong> ${institutionName}</p>
-                        <p><strong>Service Type:</strong> ${serviceType}</p>
-                        <p><strong>Session Date:</strong> ${sessionDate}</p>
+                        <p><strong>Institution:</strong> ${escapeHtml(institutionName)}</p>
+                        <p><strong>Service Type:</strong> ${escapeHtml(serviceType)}</p>
+                        <p><strong>Session Date:</strong> ${escapeHtml(sessionDate)}</p>
                         <p><strong>Partnership Date:</strong> ${transactionDate.toLocaleDateString()}</p>
-                        <p><strong>Investment:</strong> ${currency.toUpperCase()} ${amount}</p>
-                        <p><strong>Payment ID:</strong> ${paymentId}</p>
+                        <p><strong>Investment:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
+                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
                     </div>
 
                     <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -1392,13 +1404,13 @@ function generateGeneralPaymentEmail(details: any) {
                         <p style="margin: 10px 0 0 0; opacity: 0.9;">Thank you for your payment</p>
                     </div>
 
-                    <p>Dear ${userName || 'Valued Customer'},</p>
+                    <p>Dear ${escapeHtml(userName || 'Valued Customer')},</p>
                     <p>Your payment has been successfully processed. Thank you for choosing STEM for Society!</p>
 
                     <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; border-radius: 8px; margin: 20px 0;">
                         <h4>💳 Payment Details:</h4>
-                        <p><strong>Amount:</strong> ${currency.toUpperCase()} ${amount}</p>
-                        <p><strong>Payment ID:</strong> ${paymentId}</p>
+                        <p><strong>Amount:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
+                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
                         <p><strong>Date:</strong> ${transactionDate.toLocaleString()}</p>
                         <p><strong>Status:</strong> <span style="color: #10b981;">✅ Successful</span></p>
                     </div>
@@ -1438,9 +1450,9 @@ function generateCourseReminderEmail({ userEmail, userName, courseName, startISO
         subject: `⏰ Reminder: ${courseName} starts ${whenLabel}`,
         html: `
             <div style="font-family:Segoe UI, sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-              <h2>Reminder — ${courseName}</h2>
-              <p>Hi ${userName || 'Student'},</p>
-              <p>This is a reminder that <strong>${courseName}</strong> is scheduled to start <strong>${whenLabel}</strong> at <strong>${startPretty}</strong>.</p>
+              <h2>Reminder — ${escapeHtml(courseName)}</h2>
+              <p>Hi ${escapeHtml(userName || 'Student')},</p>
+              <p>This is a reminder that <strong>${escapeHtml(courseName)}</strong> is scheduled to start <strong>${escapeHtml(whenLabel)}</strong> at <strong>${escapeHtml(startPretty)}</strong>.</p>
               <p>Please be ready and join the class on time.</p>
               <p>— STEM for Society</p>
             </div>
