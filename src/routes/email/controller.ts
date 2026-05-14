@@ -3,10 +3,218 @@ import { db } from "../../db/connection";
 const nodemailer = require("nodemailer");
 import { userOtp, userTable } from "../../db/schema/users";
 import { and, eq } from "drizzle-orm";
+import * as path from "path";
 const { randomInt } = require("crypto");
 
 const email = process.env.EMAIL;
 const pass = process.env.APP_PASS;
+
+const BRAND_PRIMARY = "#2f8ef7";
+const BRAND_DARK = "#0b3f8c";
+const BRAND_BG = "#f6f9fc";
+const logoCid = "sfs-logo";
+const logoPath = path.join(__dirname, "..", "..", "assets", "logo.png");
+
+function getLogoAttachment() {
+    return {
+        filename: "logo.png",
+        path: logoPath,
+        cid: logoCid,
+    };
+}
+
+function renderBrandHeader(subtitle?: string) {
+    return `
+        <div class="header">
+            <img class="logo-img" src="cid:${logoCid}" alt="STEM for Society" style="width:84px;height:auto;display:block;margin:0 auto 12px;" />
+            <div class="brand-title" style="font-size:20px;font-weight:700;color:${BRAND_DARK};letter-spacing:0.8px;">STEM FOR SOCIETY</div>
+            ${subtitle ? `<div class="tagline" style="color:#5f6b7a;font-size:13px;margin-top:4px;">${escapeHtml(subtitle)}</div>` : ""}
+        </div>
+    `;
+}
+
+type EmailShellOptions = {
+        title: string;
+        subtitle?: string;
+        preheader?: string;
+        contentHtml: string;
+        footerHtml?: string;
+};
+
+function renderEmailShell({ title, subtitle, preheader, contentHtml, footerHtml }: EmailShellOptions) {
+        const safePreheader = escapeHtml(preheader || title);
+        const safeTitle = escapeHtml(title);
+        const safeSubtitle = subtitle ? escapeHtml(subtitle) : "";
+        const footer = footerHtml || `
+                <div class="footer">
+                        <div>Need help? Contact us at support@stemforsociety.com</div>
+                        <div>STEM for Society · www.stemforsociety.org</div>
+                        <div>© ${new Date().getFullYear()} STEM for Society. All rights reserved.</div>
+                </div>
+        `;
+
+        return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${safeTitle}</title>
+                <style>
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+                        background-color: ${BRAND_BG};
+                        color: #1f2937;
+                    }
+                    .preheader {
+                        display: none !important;
+                        visibility: hidden;
+                        opacity: 0;
+                        height: 0;
+                        width: 0;
+                        overflow: hidden;
+                    }
+                    .wrapper {
+                        width: 100%;
+                        padding: 24px 12px 40px;
+                        background-color: ${BRAND_BG};
+                    }
+                    .card {
+                        max-width: 640px;
+                        margin: 0 auto;
+                        background: #ffffff;
+                        border-radius: 16px;
+                        padding: 32px 36px;
+                        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 20px;
+                    }
+                    .logo-img {
+                        width: 72px;
+                        height: auto;
+                        display: block;
+                        margin: 0 auto 10px;
+                    }
+                    .brand-title {
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: ${BRAND_DARK};
+                        letter-spacing: 3px;
+                    }
+                    .subtitle {
+                        font-size: 13px;
+                        color: #64748b;
+                        margin-top: 6px;
+                    }
+                    .title {
+                        font-size: 22px;
+                        font-weight: 700;
+                        margin: 8px 0 16px;
+                        text-align: center;
+                        color: #0f172a;
+                    }
+                    .lead {
+                        font-size: 15px;
+                        color: #334155;
+                    }
+                    .section {
+                        background: #f8fafc;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 12px;
+                        padding: 16px 18px;
+                        margin: 16px 0;
+                    }
+                    .section-title {
+                        font-size: 11px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.14em;
+                        color: #64748b;
+                        margin: 0 0 10px;
+                    }
+                    .kv-row {
+                        font-size: 14px;
+                        margin: 6px 0;
+                    }
+                    .kv-label {
+                        color: #64748b;
+                    }
+                    .kv-value {
+                        font-weight: 600;
+                        color: #111827;
+                    }
+                    .otp-box {
+                        text-align: center;
+                        background: #eef5ff;
+                        border: 1px solid #cfe1ff;
+                        border-radius: 14px;
+                        padding: 18px 16px;
+                        margin: 18px 0;
+                    }
+                    .otp-label {
+                        font-size: 12px;
+                        color: #64748b;
+                        text-transform: uppercase;
+                        letter-spacing: 0.18em;
+                    }
+                    .otp-code {
+                        font-size: 32px;
+                        letter-spacing: 6px;
+                        font-weight: 700;
+                        color: ${BRAND_DARK};
+                        margin: 8px 0 6px;
+                    }
+                    .muted {
+                        color: #64748b;
+                        font-size: 13px;
+                    }
+                    .btn {
+                        background: ${BRAND_PRIMARY};
+                        color: #ffffff !important;
+                        text-decoration: none;
+                        border-radius: 10px;
+                        padding: 12px 18px;
+                        display: inline-block;
+                        font-weight: 600;
+                    }
+                    .divider {
+                        height: 1px;
+                        background: #e5e7eb;
+                        margin: 22px 0;
+                    }
+                    .footer {
+                        text-align: center;
+                        font-size: 12px;
+                        color: #94a3b8;
+                        margin-top: 22px;
+                    }
+                    .footer a {
+                        color: ${BRAND_PRIMARY};
+                        text-decoration: none;
+                    }
+                </style>
+            </head>
+            <body>
+                <span class="preheader">${safePreheader}</span>
+                <div class="wrapper">
+                    <div class="card">
+                        <div class="header">
+                            <img class="logo-img" src="cid:${logoCid}" alt="STEM for Society" />
+                            <div class="brand-title">STEM FOR SOCIETY</div>
+                            ${subtitle ? `<div class="subtitle">${safeSubtitle}</div>` : ""}
+                        </div>
+                        <div class="title">${safeTitle}</div>
+                        ${contentHtml}
+                        ${footer}
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+}
 
 
 let transporter = nodemailer.createTransport({
@@ -40,7 +248,8 @@ export const sendOTP: RequestHandler = async (req: Request, res: Response) => {
             to: email,
             subject: 'Verify Your Email - Institution Registration | STEM for Society',
             html: generateInstitutionRegistrationOTPTemplate(otp, email, phone, institutionName),
-            text: `Your OTP for STEM for Society institution registration is: ${otp}. This OTP will expire in 10 minutes.`
+            text: `Your OTP for STEM for Society institution registration is: ${otp}. This OTP will expire in 10 minutes.`,
+            attachments: [getLogoAttachment()]
         };
 
         // Check if OTP record already exists for this email
@@ -118,7 +327,8 @@ export const sendOTPReset: RequestHandler = async (req: Request, res: Response) 
             to: email,
             subject: 'Password Reset Verification - STEM for Society',
             html: generatePasswordResetOTPTemplate(otp, email),
-            text: `Your OTP for STEM for Society Account Password Reset is: ${otp}. This OTP will expire in 10 minutes.`
+            text: `Your OTP for STEM for Society Account Password Reset is: ${otp}. This OTP will expire in 10 minutes.`,
+            attachments: [getLogoAttachment()]
         };
 
         // Check if OTP record already exists for this email
@@ -192,326 +402,102 @@ function escapeHtml(value: unknown): string {
 
 // Template for Institution Registration OTP
 function generateInstitutionRegistrationOTPTemplate(otp: number, email?: string, phone?: string, institutionName?: string): string {
-    return `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Verify Your Email - Institution Registration | STEM for Society</title>
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f8fafc;
-          }
-          .container {
-            background-color: #ffffff;
-            border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 40px;
-          }
-          .logo {
-            font-size: 28px;
-            font-weight: bold;
-            color: #3b82f6;
-            margin-bottom: 10px;
-          }
-          .tagline {
-            color: #6b7280;
-            font-size: 14px;
-          }
-          .otp-box {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            text-align: center;
-            margin: 30px 0;
-          }
-          .otp-code {
-            font-size: 36px;
-            font-weight: bold;
-            letter-spacing: 8px;
-            margin: 10px 0;
-            font-family: 'Courier New', monospace;
-          }
-          .otp-label {
-            font-size: 14px;
-            opacity: 0.9;
-            margin-bottom: 10px;
-          }
-          .info-section {
-            background-color: #f0f9ff;
-            border-left: 4px solid #3b82f6;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-          }
-          .info-item {
-            margin: 10px 0;
-            font-size: 14px;
-          }
-          .warning {
-            background-color: #fef3cd;
-            border: 1px solid #fde68a;
-            color: #92400e;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-          }
-          .next-steps {
-            background-color: #f0fdf4;
-            border-left: 4px solid #10b981;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-          }
-          .footer {
-            text-align: center;
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 1px solid #e5e7eb;
-            color: #6b7280;
-            font-size: 12px;
-          }
-          .icon {
-            font-size: 18px;
-            margin-right: 8px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <div class="logo">STEM FOR SOCIETY</div>
-            <div class="tagline">Let's innovate, incubate and impact the world together!</div>
-          </div>
+        const detailsSection = email
+                ? `
+                    <div class="section">
+                        <div class="section-title">Registration details</div>
+                        <div class="kv-row"><span class="kv-label">Institution</span> <span class="kv-value">${escapeHtml(institutionName || "To be provided")}</span></div>
+                        <div class="kv-row"><span class="kv-label">Contact number</span> <span class="kv-value">${escapeHtml(phone || "To be provided")}</span></div>
+                        <div class="kv-row"><span class="kv-label">Email</span> <span class="kv-value">${escapeHtml(maskEmail(email))}</span></div>
+                        <div class="kv-row"><span class="kv-label">Date</span> <span class="kv-value">${new Date().toLocaleDateString()}</span></div>
+                    </div>
+                `
+                : "";
 
-          <h2>🏫 Welcome! Complete Your Institution Registration</h2>
-          <p>Thank you for choosing STEM for Society as your educational partner. We're excited to have your institution join our growing community of innovative educators!</p>
-          
-          <p>To complete your institution registration process, please verify your email address using the verification code below:</p>
+        const contentHtml = `
+                <p class="lead">Thank you for choosing STEM for Society. Use the verification code below to confirm your email and continue your institution registration.</p>
+                <div class="otp-box">
+                    <div class="otp-label">Verification code</div>
+                    <div class="otp-code">${otp}</div>
+                    <div class="muted">Expires in 10 minutes</div>
+                </div>
+                ${detailsSection}
+                <div class="section">
+                    <div class="section-title">Next steps</div>
+                    <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: 14px;">
+                        <li>Enter the code to verify your email</li>
+                        <li>Complete your institution profile</li>
+                        <li>Upload required documentation</li>
+                        <li>Our team will review and approve your registration</li>
+                    </ul>
+                </div>
+                <div class="section">
+                    <div class="section-title">Security notice</div>
+                    <div class="muted">If you did not request this registration, please ignore this email or contact support.</div>
+                </div>
+        `;
 
-          <div class="otp-box">
-            <div class="otp-label">Your Institution Registration Code</div>
-            <div class="otp-code">${otp}</div>
-            <div style="font-size: 14px; opacity: 0.9;">Valid for 10 minutes</div>
-          </div>
+        const footerHtml = `
+                <div class="footer">
+                    <div>Need help with registration? support@stemforsociety.com</div>
+                    <div>STEM for Society · www.stemforsociety.org</div>
+                    <div>© ${new Date().getFullYear()} STEM for Society. All rights reserved.</div>
+                </div>
+        `;
 
-          ${email ? `
-          <div class="info-section">
-            <h4><span class="icon">📋</span>Registration Details:</h4>
-            <div class="info-item"><strong>Institution Name:</strong> ${escapeHtml(institutionName || 'To be provided')}</div>
-            <div class="info-item"><strong>Contact Number:</strong> ${escapeHtml(phone || 'To be provided')}</div>
-            <div class="info-item"><strong>Registration Email:</strong> ${escapeHtml(maskEmail(email))}</div>
-            <div class="info-item"><strong>Registration Date:</strong> ${new Date().toLocaleDateString()}</div>
-          </div>
-          ` : ''}
-
-          <div class="next-steps">
-            <h4><span class="icon">✅</span>What happens next?</h4>
-            <ul style="margin: 10px 0; padding-left: 20px;">
-              <li>Enter the verification code to confirm your email</li>
-              <li>Complete your institution profile setup</li>
-              <li>Upload required documentation</li>
-              <li>Our team will review and approve your registration</li>
-              <li>Start creating and offering courses to students!</li>
-            </ul>
-          </div>
-
-          <div class="warning">
-            <strong>🔐 Security Notice:</strong>
-            <ul style="margin: 10px 0; padding-left: 20px;">
-              <li>This verification code expires in 10 minutes</li>
-              <li>Keep this code confidential - do not share with anyone</li>
-              <li>If you didn't request this registration, please contact support</li>
-              <li>You can request a new code if this one expires</li>
-            </ul>
-          </div>
-
-          <div class="footer">
-            <p>Need help with registration? Our support team is here to assist you!</p>
-            <p><strong>STEM for Society</strong><br>
-            Email: support@stemforsociety.com<br>
-            Phone: +91-XXXX-XXXXXX<br>
-            Website: www.stemforsociety.org</p>
-            <p>© ${new Date().getFullYear()} STEM for Society. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+        return renderEmailShell({
+                title: "Verify your email",
+                subtitle: "Institution registration",
+                preheader: "Use this code to verify your institution registration email",
+                contentHtml,
+                footerHtml,
+        });
 }
 
 // Template for Password Reset OTP
 function generatePasswordResetOTPTemplate(otp: number, email: string): string {
-    return `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Password Reset Verification - STEM for Society</title>
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f8fafc;
-          }
-          .container {
-            background-color: #ffffff;
-            border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 40px;
-          }
-          .logo {
-            font-size: 28px;
-            font-weight: bold;
-            color: #3b82f6;
-            margin-bottom: 10px;
-          }
-          .tagline {
-            color: #6b7280;
-            font-size: 14px;
-          }
-          .otp-box {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            text-align: center;
-            margin: 30px 0;
-          }
-          .otp-code {
-            font-size: 36px;
-            font-weight: bold;
-            letter-spacing: 8px;
-            margin: 10px 0;
-            font-family: 'Courier New', monospace;
-          }
-          .otp-label {
-            font-size: 14px;
-            opacity: 0.9;
-            margin-bottom: 10px;
-          }
-          .info-section {
-            background-color: #fef3cd;
-            border-left: 4px solid #f59e0b;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-          }
-          .info-item {
-            margin: 10px 0;
-            font-size: 14px;
-          }
-          .warning {
-            background-color: #fee2e2;
-            border: 1px solid #fca5a5;
-            color: #dc2626;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-          }
-          .next-steps {
-            background-color: #f0f9ff;
-            border-left: 4px solid #3b82f6;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-          }
-          .footer {
-            text-align: center;
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 1px solid #e5e7eb;
-            color: #6b7280;
-            font-size: 12px;
-          }
-          .icon {
-            font-size: 18px;
-            margin-right: 8px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <div class="logo">STEM FOR SOCIETY</div>
-            <div class="tagline">Let's innovate, incubate and impact the world together!</div>
-          </div>
+        const contentHtml = `
+                <p class="lead">We received a request to reset the password for your account associated with <strong>${escapeHtml(maskEmail(email))}</strong>.</p>
+                <p class="lead">Use the verification code below to continue.</p>
+                <div class="otp-box">
+                    <div class="otp-label">Password reset code</div>
+                    <div class="otp-code">${otp}</div>
+                    <div class="muted">Expires in 10 minutes</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">Reset details</div>
+                    <div class="kv-row"><span class="kv-label">Account email</span> <span class="kv-value">${escapeHtml(maskEmail(email))}</span></div>
+                    <div class="kv-row"><span class="kv-label">Request time</span> <span class="kv-value">${new Date().toLocaleString()}</span></div>
+                </div>
+                <div class="section">
+                    <div class="section-title">How to reset</div>
+                    <ol style="margin: 0; padding-left: 18px; color: #334155; font-size: 14px;">
+                        <li>Enter the code in the reset form</li>
+                        <li>Create a new, strong password</li>
+                        <li>Confirm and save your new password</li>
+                    </ol>
+                </div>
+                <div class="section">
+                    <div class="section-title">Security notice</div>
+                    <div class="muted">If you did not request this reset, please ignore this email or contact support.</div>
+                </div>
+        `;
 
-          <h2> Password Reset Request</h2>
-          <p>We received a request to reset the password for your STEM for Society account associated with <strong>${escapeHtml(maskEmail(email))}</strong>.</p>
-          
-          <p>To proceed with resetting your password, please use the verification code below:</p>
+        const footerHtml = `
+                <div class="footer">
+                    <div>Need assistance? support@stemforsociety.com</div>
+                    <div>STEM for Society · www.stemforsociety.org</div>
+                    <div>© ${new Date().getFullYear()} STEM for Society. All rights reserved.</div>
+                </div>
+        `;
 
-          <div class="otp-box">
-            <div class="otp-label">Your Password Reset Code</div>
-            <div class="otp-code">${otp}</div>
-            <div style="font-size: 14px; opacity: 0.9;">Valid for 10 minutes</div>
-          </div>
-
-          <div class="info-section">
-            <h4><span class="icon"></span>Reset Details:</h4>
-            <div class="info-item"><strong>Account Email:</strong> ${escapeHtml(maskEmail(email))}</div>
-            <div class="info-item"><strong>Request Time:</strong> ${new Date().toLocaleString()}</div>
-          </div>
-
-          <div class="next-steps">
-            <h4><span class="icon"></span>How to reset your password:</h4>
-            <ol style="margin: 10px 0; padding-left: 20px;">
-              <li>Enter the verification code above in the password reset form</li>
-              <li>Create a new, strong password</li>
-              <li>Confirm your new password</li>
-              <li>Your password will be updated immediately</li>
-              <li>Sign in with your new password</li>
-            </ol>
-          </div>
-
-          <div class="warning">
-            <strong> Important Security Information:</strong>
-            <ul style="margin: 10px 0; padding-left: 20px;">
-              <li><strong>Didn't request this?</strong> If you didn't request a password reset, please ignore this email and contact support immediately</li>
-              <li><strong>Code expires in 10 minutes</strong> - Use it quickly or request a new one</li>
-              <li><strong>Keep it private</strong> - Never share this code with anyone</li>
-              <li><strong>One-time use</strong> - This code can only be used once</li>
-            </ul>
-          </div>
-
-          <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong> Security Tip:</strong> Choose a strong password that includes uppercase letters, lowercase letters, numbers, and special characters. Avoid using easily guessable information.</p>
-          </div>
-
-          <div class="footer">
-            <p>If you need assistance with password reset, please contact our support team.</p>
-            <p><strong>STEM for Society</strong><br>
-            Email: support@stemforsociety.com<br>
-            Phone: +91-XXXX-XXXXXX<br>
-            Website: www.stemforsociety.org</p>
-            <p>© ${new Date().getFullYear()} STEM for Society. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+        return renderEmailShell({
+                title: "Password reset verification",
+                subtitle: "Secure your account",
+                preheader: "Use this code to reset your password",
+                contentHtml,
+                footerHtml,
+        });
 }
 
 export const verifyOTP: RequestHandler = async (req: Request, res: Response) => {
@@ -811,153 +797,76 @@ function generateCourseRegistrationEmail(details: any) {
     const endUTC = formatDateToICS(endObj);
     const icsContent = generateICS({ courseName, startUTC, endUTC, meetLink, userName });
 
+    const meetSection = meetLink
+        ? `
+            <div class="section">
+              <div class="section-title">Join live class</div>
+              <p style="margin: 0 0 12px; color: #334155; font-size: 14px;">Use the button below to join the session at the scheduled time.</p>
+              <a class="btn" href="${escapeHtml(meetLink)}">Join the session</a>
+              <div class="muted" style="margin-top: 10px;">A calendar invite (.ics) is attached to this email.</div>
+            </div>
+        `
+        : "";
+
+    const contentHtml = `
+        <p class="lead">Dear ${escapeHtml(userName || "Student")},</p>
+        <p class="lead">Your registration for <strong>${escapeHtml(courseName)}</strong> is confirmed. We are excited to have you join the course.</p>
+        <div class="section">
+          <div class="section-title">Course details</div>
+          <div class="kv-row"><span class="kv-label">Course</span> <span class="kv-value">${escapeHtml(courseName)}</span></div>
+          <div class="kv-row"><span class="kv-label">Duration</span> <span class="kv-value">${escapeHtml(courseDuration)}</span></div>
+          <div class="kv-row"><span class="kv-label">Start date</span> <span class="kv-value">${escapeHtml(startDate)}</span></div>
+          <div class="kv-row"><span class="kv-label">Registration date</span> <span class="kv-value">${transactionDate.toLocaleDateString()}</span></div>
+        </div>
+        ${meetSection}
+        <div class="section">
+          <div class="section-title">Payment details</div>
+          <div class="kv-row"><span class="kv-label">Amount paid</span> <span class="kv-value">${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</span></div>
+          <div class="kv-row"><span class="kv-label">Payment ID</span> <span class="kv-value">${escapeHtml(paymentId)}</span></div>
+          <div class="kv-row"><span class="kv-label">Transaction date</span> <span class="kv-value">${transactionDate.toLocaleString()}</span></div>
+          <div class="kv-row"><span class="kv-label">Status</span> <span class="kv-value">Successful</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Next steps</div>
+          <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: 14px;">
+            <li>Check your dashboard for course materials</li>
+            <li>Join the course community group when you receive the invite</li>
+            <li>Download the course schedule and syllabus</li>
+          </ul>
+        </div>
+    `;
+
+    const footerHtml = `
+        <div class="footer">
+          <div>Questions? support@stemforsociety.com</div>
+          <div>STEM for Society · www.stemforsociety.org</div>
+          <div>© ${new Date().getFullYear()} STEM for Society. All rights reserved.</div>
+        </div>
+    `;
+
     return {
         from: {
             name: 'STEM for Society',
             address: 'noreply@stemforsociety.com'
         },
         to: userEmail,
-        subject: `🎉 Course Registration Confirmed - ${courseName} | STEM for Society`,
-        html: `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Course Registration Confirmed</title>
-                <style>
-                    body {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        line-height: 1.6;
-                        color: #333;
-                        max-width: 600px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        background-color: #f8fafc;
-                    }
-                    .container {
-                        background-color: #ffffff;
-                        border-radius: 12px;
-                        padding: 40px;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-                    }
-                    .header {
-                        text-align: center;
-                        margin-bottom: 40px;
-                    }
-                    .logo {
-                        font-size: 28px;
-                        font-weight: bold;
-                        color: #3b82f6;
-                        margin-bottom: 10px;
-                    }
-                    .success-badge {
-                        background: linear-gradient(135deg, #10b981, #059669);
-                        color: white;
-                        padding: 20px;
-                        border-radius: 12px;
-                        text-align: center;
-                        margin: 30px 0;
-                    }
-                    .course-details {
-                        background-color: #f0f9ff;
-                        border-left: 4px solid #3b82f6;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                    }
-                    .payment-details {
-                        background-color: #f0fdf4;
-                        border-left: 4px solid #10b981;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                    }
-                    .next-steps {
-                        background-color: #fef3cd;
-                        border-left: 4px solid #f59e0b;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                    }
-                    .footer {
-                        text-align: center;
-                        margin-top: 40px;
-                        padding-top: 30px;
-                        border-top: 1px solid #e5e7eb;
-                        color: #6b7280;
-                        font-size: 12px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="logo">STEM FOR SOCIETY</div>
-                        <div style="color: #6b7280; font-size: 14px;">Let's innovate, incubate and impact the world together!</div>
-                    </div>
-
-                    <div class="success-badge">
-                        <h2 style="margin: 0; font-size: 24px;">🎉 Registration Successful!</h2>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Welcome to ${escapeHtml(courseName)}</p>
-                    </div>
-
-                    <p>Dear ${escapeHtml(userName || 'Student')},</p>
-                    <p>Congratulations! Your registration for <strong>${escapeHtml(courseName)}</strong> has been confirmed. We're excited to have you join our learning community!</p>
-
-                    <div class="course-details">
-                        <h4>📚 Course Details:</h4>
-                        <p><strong>Course Name:</strong> ${escapeHtml(courseName)}</p>
-                        <p><strong>Duration:</strong> ${escapeHtml(courseDuration)}</p>
-                        <p><strong>Start Date:</strong> ${escapeHtml(startDate)}</p>
-                        <p><strong>Registration Date:</strong> ${transactionDate.toLocaleDateString()}</p>
-                    </div>
-
-                    ${meetLink ? `
-                    <div style="margin: 10px 0;">
-                        <h4>🔗 Join Live Class</h4>
-                        <p><a href="${escapeHtml(meetLink)}">Click here to join the meeting</a></p>
-                        <p>We've attached a calendar invite (.ics) to this email — download and add it to your calendar.</p>
-                    </div>
-                    ` : ''}
-
-                    <div class="payment-details">
-                        <h4>💳 Payment Details:</h4>
-                        <p><strong>Amount Paid:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
-                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
-                        <p><strong>Transaction Date:</strong> ${transactionDate.toLocaleString()}</p>
-                        <p><strong>Status:</strong> <span style="color: #10b981; font-weight: bold;">✅ Successful</span></p>
-                    </div>
-
-                    <div class="next-steps">
-                        <h4>📋 What's Next?</h4>
-                        <ul>
-                            <li>Check your dashboard for course materials</li>
-                            <li>Join the course WhatsApp/Discord group (link will be shared)</li>
-                            <li>Download the course schedule and syllabus</li>
-                            <li>Prepare for an amazing learning journey!</li>
-                        </ul>
-                    </div>
-
-                    <div class="footer">
-                        <p>Need help? Contact us at support@stemforsociety.com</p>
-                        <p><strong>STEM for Society</strong><br>
-                        Email: support@stemforsociety.com<br>
-                        Website: www.stemforsociety.org</p>
-                        <p>© ${new Date().getFullYear()} STEM for Society. All rights reserved.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `,
-                text: `Course Registration Confirmed - ${courseName}. Payment of ${currency.toUpperCase()} ${amount} successful. Payment ID: ${paymentId}`,
-                attachments: [
-                        {
-                                filename: `${courseName.replace(/[^a-z0-9]/gi, '_')}.ics`,
-                                content: icsContent,
-                                contentType: 'text/calendar; method=REQUEST; charset=UTF-8'
-                        }
-                ]
+        subject: `Course Registration Confirmed - ${courseName} | STEM for Society`,
+        html: renderEmailShell({
+            title: "Course registration confirmed",
+            subtitle: "Course enrollment",
+            preheader: `Your registration for ${courseName} is confirmed`,
+            contentHtml,
+            footerHtml,
+        }),
+        text: `Course Registration Confirmed - ${courseName}. Payment of ${currency.toUpperCase()} ${amount} successful. Payment ID: ${paymentId}`,
+        attachments: [
+            getLogoAttachment(),
+            {
+                filename: `${courseName.replace(/[^a-z0-9]/gi, '_')}.ics`,
+                content: icsContent,
+                contentType: 'text/calendar; method=REQUEST; charset=UTF-8'
+            }
+        ]
     };
 }
 
@@ -1010,121 +919,55 @@ function generateMentalWellbeingEmail(details: any) {
     const sessionType = additionalDetails?.session_type || 'Mental Wellbeing Session';
     const sessionDate = additionalDetails?.session_date || 'To be scheduled';
     
+    const contentHtml = `
+        <p class="lead">Dear ${escapeHtml(userName || "Guest")},</p>
+        <p class="lead">Your mental wellbeing session is confirmed. We are here to support you throughout this journey.</p>
+        <div class="section">
+          <div class="section-title">Session details</div>
+          <div class="kv-row"><span class="kv-label">Session type</span> <span class="kv-value">${escapeHtml(sessionType)}</span></div>
+          <div class="kv-row"><span class="kv-label">Session date</span> <span class="kv-value">${escapeHtml(sessionDate)}</span></div>
+          <div class="kv-row"><span class="kv-label">Booking date</span> <span class="kv-value">${transactionDate.toLocaleDateString()}</span></div>
+          <div class="kv-row"><span class="kv-label">Amount paid</span> <span class="kv-value">${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</span></div>
+          <div class="kv-row"><span class="kv-label">Payment ID</span> <span class="kv-value">${escapeHtml(paymentId)}</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Preparing for your session</div>
+          <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: 14px;">
+            <li>Choose a quiet, comfortable space</li>
+            <li>Have a notebook ready for insights</li>
+            <li>Come with an open mind and heart</li>
+          </ul>
+        </div>
+        <div class="section">
+          <div class="section-title">Before the session</div>
+          <div class="muted">Our coordinator will contact you 24 hours before the session with links and instructions.</div>
+        </div>
+    `;
+
+    const footerHtml = `
+        <div class="footer">
+          <div>Wellness support: wellness@stemforsociety.com</div>
+          <div>STEM for Society · www.stemforsociety.org</div>
+          <div>© ${new Date().getFullYear()} STEM for Society. Your mental health matters.</div>
+        </div>
+    `;
+
     return {
         from: {
             name: 'STEM for Society - Wellness',
             address: 'wellness@stemforsociety.com'
         },
         to: userEmail,
-        subject: `🌱 Mental Wellbeing Session Booked - Your Journey to Wellness Begins | STEM for Society`,
-        html: `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Mental Wellbeing Session Confirmed</title>
-                <style>
-                    body {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        line-height: 1.6;
-                        color: #333;
-                        max-width: 600px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        background-color: #f8fafc;
-                    }
-                    .container {
-                        background-color: #ffffff;
-                        border-radius: 12px;
-                        padding: 40px;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-                    }
-                    .header {
-                        text-align: center;
-                        margin-bottom: 40px;
-                    }
-                    .logo {
-                        font-size: 28px;
-                        font-weight: bold;
-                        color: #8b5cf6;
-                        margin-bottom: 10px;
-                    }
-                    .success-badge {
-                        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-                        color: white;
-                        padding: 20px;
-                        border-radius: 12px;
-                        text-align: center;
-                        margin: 30px 0;
-                    }
-                    .session-details {
-                        background-color: #faf5ff;
-                        border-left: 4px solid #8b5cf6;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                    }
-                    .wellness-tips {
-                        background-color: #ecfdf5;
-                        border-left: 4px solid #10b981;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="logo">STEM FOR SOCIETY</div>
-                        <div style="color: #8b5cf6; font-size: 16px; font-weight: 600;">Mental Wellbeing & Wellness</div>
-                    </div>
-
-                    <div class="success-badge">
-                        <h2 style="margin: 0; font-size: 24px;">🌱 Session Booked Successfully!</h2>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Your mental wellness journey begins here</p>
-                    </div>
-
-                    <p>Dear ${escapeHtml(userName || 'Friend')},</p>
-                    <p>Thank you for taking this important step towards your mental wellbeing. Your session has been successfully booked, and we're here to support you on this journey.</p>
-
-                    <div class="session-details">
-                        <h4>🧠 Session Details:</h4>
-                        <p><strong>Session Type:</strong> ${escapeHtml(sessionType)}</p>
-                        <p><strong>Session Date:</strong> ${escapeHtml(sessionDate)}</p>
-                        <p><strong>Booking Date:</strong> ${transactionDate.toLocaleDateString()}</p>
-                        <p><strong>Amount Paid:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
-                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
-                    </div>
-
-                    <div class="wellness-tips">
-                        <h4>💡 Preparing for Your Session:</h4>
-                        <ul>
-                            <li>Find a quiet, comfortable space for your session</li>
-                            <li>Have a notebook ready to jot down insights</li>
-                            <li>Come with an open mind and heart</li>
-                            <li>Remember, this is your safe space to share and grow</li>
-                        </ul>
-                    </div>
-
-                    <div style="background-color: #fef3cd; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <h4>📞 Before Your Session:</h4>
-                        <p>Our wellness coordinator will contact you 24 hours before your scheduled session to confirm details and provide any necessary links or instructions.</p>
-                    </div>
-
-                    <div class="footer" style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
-                        <p>Questions about your session? Contact our wellness team at wellness@stemforsociety.com</p>
-                        <p><strong>STEM for Society - Mental Wellness</strong><br>
-                        Email: wellness@stemforsociety.com<br>
-                        Crisis Helpline: +91-XXXX-XXXXXX (24/7)</p>
-                        <p>© ${new Date().getFullYear()} STEM for Society. Your mental health matters.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `,
-        text: `Mental Wellbeing Session Booked - ${sessionType}. Payment of ${currency.toUpperCase()} ${amount} successful. Session Date: ${sessionDate}`
+        subject: `Mental Wellbeing Session Confirmed | STEM for Society`,
+        html: renderEmailShell({
+            title: "Session booked successfully",
+            subtitle: "Mental wellbeing",
+            preheader: "Your session is confirmed",
+            contentHtml,
+            footerHtml,
+        }),
+        text: `Mental Wellbeing Session Booked - ${sessionType}. Payment of ${currency.toUpperCase()} ${amount} successful. Session Date: ${sessionDate}`,
+        attachments: [getLogoAttachment()]
     };
 }
 
@@ -1134,109 +977,51 @@ function generateCareerCounselingEmail(details: any) {
     const counselingType = additionalDetails?.counseling_type || 'Career Guidance Session';
     const sessionDate = additionalDetails?.session_date || 'To be scheduled';
     
+    const contentHtml = `
+        <p class="lead">Dear ${escapeHtml(userName || "Guest")},</p>
+        <p class="lead">Your career counseling session is confirmed. We look forward to supporting your next step.</p>
+        <div class="section">
+          <div class="section-title">Session details</div>
+          <div class="kv-row"><span class="kv-label">Counseling type</span> <span class="kv-value">${escapeHtml(counselingType)}</span></div>
+          <div class="kv-row"><span class="kv-label">Session date</span> <span class="kv-value">${escapeHtml(sessionDate)}</span></div>
+          <div class="kv-row"><span class="kv-label">Booking date</span> <span class="kv-value">${transactionDate.toLocaleDateString()}</span></div>
+          <div class="kv-row"><span class="kv-label">Investment</span> <span class="kv-value">${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</span></div>
+          <div class="kv-row"><span class="kv-label">Payment ID</span> <span class="kv-value">${escapeHtml(paymentId)}</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Prepare for the session</div>
+          <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: 14px;">
+            <li>Bring your updated resume or portfolio</li>
+            <li>List your top career questions</li>
+            <li>Reflect on your goals and strengths</li>
+          </ul>
+        </div>
+    `;
+
+    const footerHtml = `
+        <div class="footer">
+          <div>Career services: careers@stemforsociety.com</div>
+          <div>STEM for Society · www.stemforsociety.org</div>
+          <div>© ${new Date().getFullYear()} STEM for Society. Empowering your career journey.</div>
+        </div>
+    `;
+
     return {
         from: {
             name: 'STEM for Society - Career Services',
             address: 'careers@stemforsociety.com'
         },
         to: userEmail,
-        subject: `🚀 Career Counseling Session Confirmed - Shape Your Future | STEM for Society`,
-        html: `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Career Counseling Confirmed</title>
-                <style>
-                    body {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        line-height: 1.6;
-                        color: #333;
-                        max-width: 600px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        background-color: #f8fafc;
-                    }
-                    .container {
-                        background-color: #ffffff;
-                        border-radius: 12px;
-                        padding: 40px;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-                    }
-                    .header {
-                        text-align: center;
-                        margin-bottom: 40px;
-                    }
-                    .logo {
-                        font-size: 28px;
-                        font-weight: bold;
-                        color: #f59e0b;
-                        margin-bottom: 10px;
-                    }
-                    .success-badge {
-                        background: linear-gradient(135deg, #f59e0b, #d97706);
-                        color: white;
-                        padding: 20px;
-                        border-radius: 12px;
-                        text-align: center;
-                        margin: 30px 0;
-                    }
-                    .session-details {
-                        background-color: #fffbeb;
-                        border-left: 4px solid #f59e0b;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="logo">STEM FOR SOCIETY</div>
-                        <div style="color: #f59e0b; font-size: 16px; font-weight: 600;">Career Guidance & Counseling</div>
-                    </div>
-
-                    <div class="success-badge">
-                        <h2 style="margin: 0; font-size: 24px;">🚀 Session Confirmed!</h2>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Your career transformation starts now</p>
-                    </div>
-
-                    <p>Dear ${escapeHtml(userName || 'Future Leader')},</p>
-                    <p>Congratulations on taking this important step towards your career growth! Your career counseling session has been successfully booked.</p>
-
-                    <div class="session-details">
-                        <h4>💼 Session Details:</h4>
-                        <p><strong>Counseling Type:</strong> ${escapeHtml(counselingType)}</p>
-                        <p><strong>Session Date:</strong> ${escapeHtml(sessionDate)}</p>
-                        <p><strong>Booking Date:</strong> ${transactionDate.toLocaleDateString()}</p>
-                        <p><strong>Investment:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
-                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
-                    </div>
-
-                    <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <h4>📋 Prepare for Success:</h4>
-                        <ul>
-                            <li>Bring your updated resume/CV</li>
-                            <li>Prepare questions about your career goals</li>
-                            <li>Think about your interests, skills, and values</li>
-                            <li>Be ready to discuss your career aspirations</li>
-                        </ul>
-                    </div>
-
-                    <div class="footer" style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
-                        <p>Questions? Contact our career services team at careers@stemforsociety.com</p>
-                        <p><strong>STEM for Society - Career Services</strong><br>
-                        Email: careers@stemforsociety.com<br>
-                        Website: www.stemforsociety.org/careers</p>
-                        <p>© ${new Date().getFullYear()} STEM for Society. Empowering your career journey.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `,
-        text: `Career Counseling Session Confirmed - ${counselingType}. Payment of ${currency.toUpperCase()} ${amount} successful. Session Date: ${sessionDate}`
+        subject: `Career Counseling Confirmed | STEM for Society`,
+        html: renderEmailShell({
+            title: "Career counseling confirmed",
+            subtitle: "Career guidance",
+            preheader: "Your career counseling session is confirmed",
+            contentHtml,
+            footerHtml,
+        }),
+        text: `Career Counseling Session Confirmed - ${counselingType}. Payment of ${currency.toUpperCase()} ${amount} successful. Session Date: ${sessionDate}`,
+        attachments: [getLogoAttachment()]
     };
 }
 
@@ -1246,110 +1031,52 @@ function generateInstitutionBookingEmail(details: any) {
     const serviceType = additionalDetails?.service_type || 'Institution Partnership';
     const institutionName = additionalDetails?.institution_name || 'Your Institution';
     const sessionDate = additionalDetails?.session_date || 'To be scheduled';
+    const contentHtml = `
+        <p class="lead">Dear ${escapeHtml(userName || "Institution Representative")},</p>
+        <p class="lead">Your institution partnership is confirmed. We look forward to building impactful programs together.</p>
+        <div class="section">
+          <div class="section-title">Partnership details</div>
+          <div class="kv-row"><span class="kv-label">Institution</span> <span class="kv-value">${escapeHtml(institutionName)}</span></div>
+          <div class="kv-row"><span class="kv-label">Service type</span> <span class="kv-value">${escapeHtml(serviceType)}</span></div>
+          <div class="kv-row"><span class="kv-label">Session date</span> <span class="kv-value">${escapeHtml(sessionDate)}</span></div>
+          <div class="kv-row"><span class="kv-label">Partnership date</span> <span class="kv-value">${transactionDate.toLocaleDateString()}</span></div>
+          <div class="kv-row"><span class="kv-label">Investment</span> <span class="kv-value">${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</span></div>
+          <div class="kv-row"><span class="kv-label">Payment ID</span> <span class="kv-value">${escapeHtml(paymentId)}</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Next steps</div>
+          <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: 14px;">
+            <li>Our partnership team will contact you within 24 hours</li>
+            <li>Schedule onboarding and set goals</li>
+            <li>Receive access to the institution dashboard</li>
+          </ul>
+        </div>
+    `;
+
+    const footerHtml = `
+        <div class="footer">
+          <div>Partnerships: partnerships@stemforsociety.com</div>
+          <div>STEM for Society · www.stemforsociety.org/institutions</div>
+          <div>© ${new Date().getFullYear()} STEM for Society. Building educational partnerships.</div>
+        </div>
+    `;
+
     return {
         from: {
             name: 'STEM for Society - Partnerships',
             address: 'partnerships@stemforsociety.com'
         },
         to: userEmail,
-        subject: `🏫 Institution Partnership Confirmed - Welcome to STEM for Society | ${institutionName}`,
-        html: `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Institution Partnership Confirmed</title>
-                <style>
-                    body {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        line-height: 1.6;
-                        color: #333;
-                        max-width: 600px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        background-color: #f8fafc;
-                    }
-                    .container {
-                        background-color: #ffffff;
-                        border-radius: 12px;
-                        padding: 40px;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-                    }
-                    .header {
-                        text-align: center;
-                        margin-bottom: 40px;
-                    }
-                    .logo {
-                        font-size: 28px;
-                        font-weight: bold;
-                        color: #d5eb9aff;
-                        margin-bottom: 10px;
-                    }
-                    .success-badge {
-                        background: linear-gradient(135deg, #aac287ff, #da7474ff);
-                        color: white;
-                        padding: 20px;
-                        border-radius: 12px;
-                        text-align: center;
-                        margin: 30px 0;
-                    }
-                    .partnership-details {
-                        background-color: #fef2f2;
-                        border-left: 4px solid #26dc5dff;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="logo">STEM FOR SOCIETY</div>
-                        <div style="color: #1d36d6ff; font-size: 16px; font-weight: 600;">Institutional Partnerships</div>
-                    </div>
-
-                    <div class="success-badge">
-                        <h2 style="margin: 0; font-size: 24px;">🏫 Partnership Confirmed!</h2>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Welcome to the STEM for Society family</p>
-                    </div>
-
-                    <p>Dear ${escapeHtml(userName || 'Institution Representative')},</p>
-                    <p>Welcome to STEM for Society! We're thrilled to confirm your institution's partnership with us. Together, we'll create amazing learning opportunities for students.</p>
-
-                    <div class="partnership-details">
-                        <h4>🤝 Partnership Details:</h4>
-                        <p><strong>Institution:</strong> ${escapeHtml(institutionName)}</p>
-                        <p><strong>Service Type:</strong> ${escapeHtml(serviceType)}</p>
-                        <p><strong>Session Date:</strong> ${escapeHtml(sessionDate)}</p>
-                        <p><strong>Partnership Date:</strong> ${transactionDate.toLocaleDateString()}</p>
-                        <p><strong>Investment:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
-                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
-                    </div>
-
-                    <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <h4>📋 Next Steps:</h4>
-                        <ul>
-                            <li>Our partnership team will contact you within 24 hours</li>
-                            <li>Schedule a detailed onboarding session</li>
-                            <li>Access to institution dashboard and resources</li>
-                            <li>Begin planning your first program</li>
-                        </ul>
-                    </div>
-
-                    <div class="footer" style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
-                        <p>Partnership questions? Contact us at partnerships@stemforsociety.com</p>
-                        <p><strong>STEM for Society - Institutional Partnerships</strong><br>
-                        Email: partnerships@stemforsociety.com<br>
-                        Website: www.stemforsociety.org/institutions</p>
-                        <p>© ${new Date().getFullYear()} STEM for Society. Building educational partnerships.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `,
-        text: `Institution Partnership Confirmed - ${serviceType} for ${institutionName}. Payment of ${currency.toUpperCase()} ${amount} successful.`
+        subject: `Institution Partnership Confirmed | ${institutionName}`,
+        html: renderEmailShell({
+            title: "Partnership confirmed",
+            subtitle: "Institutional partnerships",
+            preheader: `Partnership confirmed for ${institutionName}`,
+            contentHtml,
+            footerHtml,
+        }),
+        text: `Institution Partnership Confirmed - ${serviceType} for ${institutionName}. Payment of ${currency.toUpperCase()} ${amount} successful.`,
+        attachments: [getLogoAttachment()]
     };
 }
 
@@ -1357,73 +1084,33 @@ function generateInstitutionBookingEmail(details: any) {
 function generateGeneralPaymentEmail(details: any) {
     const { userEmail, userName, amount, currency, paymentId, transactionDate } = details;
     
+    const contentHtml = `
+        <p class="lead">Dear ${escapeHtml(userName || "Customer")},</p>
+        <p class="lead">Your payment has been successfully processed.</p>
+        <div class="section">
+          <div class="section-title">Payment details</div>
+          <div class="kv-row"><span class="kv-label">Amount</span> <span class="kv-value">${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</span></div>
+          <div class="kv-row"><span class="kv-label">Payment ID</span> <span class="kv-value">${escapeHtml(paymentId)}</span></div>
+          <div class="kv-row"><span class="kv-label">Date</span> <span class="kv-value">${transactionDate.toLocaleString()}</span></div>
+          <div class="kv-row"><span class="kv-label">Status</span> <span class="kv-value">Successful</span></div>
+        </div>
+    `;
+
     return {
         from: {
             name: 'STEM for Society',
             address: 'noreply@stemforsociety.com'
         },
         to: userEmail,
-        subject: `✅ Payment Successful - Thank You! | STEM for Society`,
-        html: `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Payment Successful</title>
-                <style>
-                    body {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        line-height: 1.6;
-                        color: #333;
-                        max-width: 600px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        background-color: #f8fafc;
-                    }
-                    .container {
-                        background-color: #ffffff;
-                        border-radius: 12px;
-                        padding: 40px;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-                    }
-                    .success-badge {
-                        background: linear-gradient(135deg, #10b981, #059669);
-                        color: white;
-                        padding: 20px;
-                        border-radius: 12px;
-                        text-align: center;
-                        margin: 30px 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="success-badge">
-                        <h2 style="margin: 0; font-size: 24px;">✅ Payment Successful!</h2>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9;">Thank you for your payment</p>
-                    </div>
-
-                    <p>Dear ${escapeHtml(userName || 'Valued Customer')},</p>
-                    <p>Your payment has been successfully processed. Thank you for choosing STEM for Society!</p>
-
-                    <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <h4>💳 Payment Details:</h4>
-                        <p><strong>Amount:</strong> ${escapeHtml(currency.toUpperCase())} ${escapeHtml(amount)}</p>
-                        <p><strong>Payment ID:</strong> ${escapeHtml(paymentId)}</p>
-                        <p><strong>Date:</strong> ${transactionDate.toLocaleString()}</p>
-                        <p><strong>Status:</strong> <span style="color: #10b981;">✅ Successful</span></p>
-                    </div>
-
-                    <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
-                        <p>Need help? Contact us at support@stemforsociety.com</p>
-                        <p>© ${new Date().getFullYear()} STEM for Society. All rights reserved.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `,
-        text: `Payment Successful! Amount: ${currency.toUpperCase()} ${amount}, Payment ID: ${paymentId}`
+        subject: `Payment Successful | STEM for Society`,
+        html: renderEmailShell({
+            title: "Payment successful",
+            subtitle: "Payment confirmation",
+            preheader: `Payment received: ${currency.toUpperCase()} ${amount}`,
+            contentHtml,
+        }),
+        text: `Payment Successful! Amount: ${currency.toUpperCase()} ${amount}, Payment ID: ${paymentId}`,
+        attachments: [getLogoAttachment()]
     };
 }
 
@@ -1447,17 +1134,22 @@ function generateCourseReminderEmail({ userEmail, userName, courseName, startISO
             address: 'noreply@stemforsociety.com'
         },
         to: userEmail,
-        subject: `⏰ Reminder: ${courseName} starts ${whenLabel}`,
-        html: `
-            <div style="font-family:Segoe UI, sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-              <h2>Reminder — ${escapeHtml(courseName)}</h2>
-              <p>Hi ${escapeHtml(userName || 'Student')},</p>
-              <p>This is a reminder that <strong>${escapeHtml(courseName)}</strong> is scheduled to start <strong>${escapeHtml(whenLabel)}</strong> at <strong>${escapeHtml(startPretty)}</strong>.</p>
-              <p>Please be ready and join the class on time.</p>
-              <p>— STEM for Society</p>
-            </div>
-        `,
-        text: `Reminder: ${courseName} starts ${whenLabel} at ${startPretty}`
+        subject: `Reminder: ${courseName} starts ${whenLabel}`,
+                html: renderEmailShell({
+                        title: "Course reminder",
+                        subtitle: "Upcoming session",
+                        preheader: `Reminder: ${courseName} starts ${whenLabel}`,
+                        contentHtml: `
+                                <p class="lead">Hi ${escapeHtml(userName || "Student")},</p>
+                                <p class="lead">This is a reminder that <strong>${escapeHtml(courseName)}</strong> starts <strong>${escapeHtml(whenLabel)}</strong> at <strong>${escapeHtml(startPretty)}</strong>.</p>
+                                <div class="section">
+                                    <div class="section-title">Be ready</div>
+                                    <div class="muted">Please be prepared to join the class on time.</div>
+                                </div>
+                        `,
+                }),
+                text: `Reminder: ${courseName} starts ${whenLabel} at ${startPretty}`,
+                attachments: [getLogoAttachment()]
     };
 }
 
