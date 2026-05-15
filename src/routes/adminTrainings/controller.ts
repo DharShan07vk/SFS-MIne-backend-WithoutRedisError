@@ -6,6 +6,7 @@ import { createValidationError } from "../../utils/validation";
 import { trainingTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { approveTrainingSchema } from "./validation";
+import { sendTrainingCancellationNotice } from "../email/controller";
 
 export const getTrainings: RequestHandler = async (
   req: Request,
@@ -168,6 +169,76 @@ export const approveTraining: RequestHandler = async (
           approvedBy: null,
         })
         .where(eq(trainingTable.id, trainingId.data));
+
+      try {
+        const trainingForNotice = await db.query.trainingTable.findFirst({
+          columns: {
+            title: true,
+            startDate: true,
+          },
+          with: {
+            enrolments: {
+              columns: {
+                id: true,
+              },
+              with: {
+                user: {
+                  columns: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+                transactions: {
+                  columns: {
+                    status: true,
+                  },
+                },
+              },
+            },
+          },
+          where(fields, operators) {
+            return operators.eq(fields.id, trainingId.data);
+          },
+        });
+
+        if (trainingForNotice?.enrolments?.length) {
+          const paidRecipients = new Map<string, { name: string | null }>();
+
+          for (const enrolment of trainingForNotice.enrolments) {
+            const hasPaid = enrolment.transactions?.some(
+              (txn) => txn.status === "success",
+            );
+            const userEmail = enrolment.user?.email;
+
+            if (!hasPaid || !userEmail) {
+              continue;
+            }
+
+            const fullName =
+              `${enrolment.user?.firstName ?? ""} ${enrolment.user?.lastName ?? ""}`.trim();
+            paidRecipients.set(userEmail, { name: fullName || null });
+          }
+
+          if (paidRecipients.size > 0) {
+            await Promise.all(
+              Array.from(paidRecipients.entries()).map(([email, meta]) =>
+                sendTrainingCancellationNotice({
+                  userEmail: email,
+                  userName: meta.name,
+                  courseName: trainingForNotice.title || "Training",
+                  startDate: trainingForNotice.startDate,
+                }),
+              ),
+            );
+          }
+        }
+      } catch (noticeError) {
+        console.error(
+          "🚀 ~ approveTraining ~ cancellation email error:",
+          noticeError,
+        );
+      }
     }
     res.json({
       message:

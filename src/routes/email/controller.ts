@@ -225,6 +225,62 @@ let transporter = nodemailer.createTransport({
     },
 });
 
+type TrainingCancellationNoticeInput = {
+    userEmail: string;
+    userName?: string | null;
+    courseName: string;
+    startDate?: string | Date | null;
+};
+
+function generateTrainingCancellationEmail(details: TrainingCancellationNoticeInput) {
+    const { userEmail, userName, courseName, startDate } = details;
+    const startDateText = startDate
+        ? new Date(startDate).toLocaleString()
+        : "To be announced";
+
+    const contentHtml = `
+        <p class="lead">Dear ${escapeHtml(userName || "Student")},</p>
+        <p class="lead">Your course <strong>${escapeHtml(courseName)}</strong> is currently discontinued.</p>
+        <div class="section">
+          <div class="section-title">What happens next</div>
+          <p class="lead" style="margin: 0;">We may continue on the same day, reschedule, or process a refund. We will update you shortly.</p>
+        </div>
+        <div class="section">
+          <div class="section-title">Course details</div>
+          <div class="kv-row"><span class="kv-label">Course</span> <span class="kv-value">${escapeHtml(courseName)}</span></div>
+          <div class="kv-row"><span class="kv-label">Start date</span> <span class="kv-value">${escapeHtml(startDateText)}</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Need help?</div>
+          <p class="lead" style="margin: 0;">Please contact support@stemforsociety.com for assistance.</p>
+        </div>
+    `;
+
+    return {
+        from: {
+            name: "STEM for Society",
+            address: "noreply@stemforsociety.com",
+        },
+        to: userEmail,
+        subject: `Course update: ${courseName} | STEM for Society`,
+        html: renderEmailShell({
+            title: "Course update",
+            subtitle: "Course discontinued",
+            preheader: `Update for ${courseName}`,
+            contentHtml,
+        }),
+        text: `Course update: ${courseName} is currently discontinued. It may continue on the same day, be rescheduled, or be refunded.`,
+        attachments: [getLogoAttachment()],
+    };
+}
+
+export async function sendTrainingCancellationNotice(
+    details: TrainingCancellationNoticeInput,
+) {
+    const mailOptions = generateTrainingCancellationEmail(details);
+    await transporter.sendMail(mailOptions);
+}
+
 
 export const sendOTP: RequestHandler = async (req: Request, res: Response) => {
     try {
